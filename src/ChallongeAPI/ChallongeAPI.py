@@ -7,10 +7,26 @@ from Classes.participant import Participant
 class ChallongeAPI:
     def __init__(self, username, api_key):
         challonge.set_credentials(username, api_key)
+        
+    def create_tournament(name, desc, t_type):
+        params = {
+            "description": desc         
+        }
+        
+        
+        # remove spaces from name to create the url
+        url = name.replace(" ", "")
+        
+        t = challonge.tournaments.create(name, url, str(t_type).lower(), **params)
+        
+        return Tournament(t['url'], t['id'], t['name'], t['started_at'], t['created_at'])
+        
        
     def get_tournament(self, url):        
         t =  challonge.tournaments.show(url)
         return Tournament(t['url'], t['id'], t['name'], t['started_at'], t['created_at'])
+    
+
     
     def get_matches(self, tournament_id):
         m = challonge.matches.index(tournament_id)
@@ -31,5 +47,6 @@ class ChallongeAPI:
                                  participant['challonge_username'], participant['username'], participant['checked_in']))
         return l
         
+    
     
     
