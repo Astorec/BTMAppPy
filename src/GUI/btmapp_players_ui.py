@@ -1,21 +1,15 @@
 from ChallongeAPI.ChallongeAPI import ChallongeAPI
 from Components.btmapp_get_config import GetConfig
-from Classes.tournament import Tournament
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QTableWidget,QVBoxLayout, QLabel, QComboBox,QDialogButtonBox, QInputDialog,QTableWidgetItem, QCheckBox, QTextEdit, QWidget, QHBoxLayout, QPushButton, QDialog
+from PyQt6.QtWidgets import QTableWidget, QLabel, QComboBox,QDialogButtonBox, QInputDialog,QTableWidgetItem, QCheckBox, QTextEdit, QWidget, QHBoxLayout, QPushButton, QDialog
 from PyQt6 import uic
 class PlayersUI(QWidget):
     
     def __init__(self, parent): # Accept parent_widget reference
         super().__init__(parent)
         self.parent_widget = parent
-        #self.InitUi()
         
-    def InitUi(self):        
-        # DEBUG - Find all children of the parent widget
-        for child in self.parent_widget.children():
-            print(child.objectName())
-        
+    def InitUi(self):     
         # Directly find the child widgets within self
         self.player_table = self.parent_widget.findChild(QTableWidget, 'player_table')
         self.import_button = self.parent_widget.findChild(QPushButton, 'import_btn')
@@ -217,3 +211,4 @@ class LoadPrevious(QDialog):
     def load(self):
         self.url = self.previous.currentText()        
         GetConfig.set_url(self.url)
+

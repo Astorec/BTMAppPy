@@ -2,6 +2,7 @@ from ChallongeAPI.ChallongeAPI import ChallongeAPI
 from Classes.player import Player
 from GUI.btmapp_players_ui import PlayersUI
 from GUI.btmapp_settings_ui import SettingsUI
+from GUI.btmapp_bracket_ui import BracketUI
 from Components.btmapp_sheets import BTMAppSheets
 from PyQt6 import uic
 from PyQt6.QtCore import Qt
@@ -29,6 +30,14 @@ class BTMAppMain(QMainWindow):
         # Create the Players UI passing in the type qwidget checkin_tab
         self.checkin_ui = PlayersUI(self.checkin_tab)
         self.checkin_ui.InitUi()
+
+        self.bracket_tab = self.tab_widget.findChild(QWidget, 'bracket_tab')
+        if self.bracket_tab is None:
+            print("Bracket tab not found")
+            return
+        
+        self.bracket_ui = BracketUI(self.bracket_tab)
+
         self.settings_tab = self.tab_widget.findChild(QWidget, 'settings_tab')
         if self.settings_tab is None:
             print("Settings tab not found")
@@ -45,12 +54,11 @@ class BTMAppMain(QMainWindow):
                 self.checkin_ui.InitUi()
                 print("Checkin Tab")
             case 1:
-                print("Bracket Tab")
+                self.bracket_ui.reset_bracket_ui()
             case 2:
                 print("Leaderboard Tab")
             case 3:
-                self.setting_ui.InitUi()
-                print("Settings Tab")
+                self.settings_ui.InitUi()
     
     
 if __name__ == '__main__':

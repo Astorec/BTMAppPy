@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>893</width>
+    <width>872</width>
     <height>736</height>
    </rect>
   </property>
@@ -228,6 +228,119 @@ Tournament</string>
      <attribute name="title">
       <string>Bracket</string>
      </attribute>
+     <widget class="QTabWidget" name="groups_tab">
+      <property name="geometry">
+       <rect>
+        <x>6</x>
+        <y>19</y>
+        <width>851</width>
+        <height>551</height>
+       </rect>
+      </property>
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="group_a">
+       <attribute name="title">
+        <string>Group A</string>
+       </attribute>
+       <widget class="QScrollArea" name="group_a_scroll_area">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>841</width>
+          <height>521</height>
+         </rect>
+        </property>
+        <property name="widgetResizable">
+         <bool>true</bool>
+        </property>
+        <widget class="QWidget" name="scrollAreaWidgetContents">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>0</y>
+           <width>839</width>
+           <height>519</height>
+          </rect>
+         </property>
+        </widget>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="group_b">
+       <attribute name="title">
+        <string>Group B</string>
+       </attribute>
+       <widget class="QScrollArea" name="group_b_scroll_area">
+        <property name="geometry">
+         <rect>
+          <x>-1</x>
+          <y>-1</y>
+          <width>841</width>
+          <height>521</height>
+         </rect>
+        </property>
+        <property name="widgetResizable">
+         <bool>true</bool>
+        </property>
+        <widget class="QWidget" name="scrollAreaWidgetContents_2">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>0</y>
+           <width>839</width>
+           <height>519</height>
+          </rect>
+         </property>
+        </widget>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="group_finals">
+       <attribute name="title">
+        <string>Finals</string>
+       </attribute>
+       <widget class="QScrollArea" name="group_finals_scroll_area">
+        <property name="geometry">
+         <rect>
+          <x>-1</x>
+          <y>-1</y>
+          <width>851</width>
+          <height>521</height>
+         </rect>
+        </property>
+        <property name="widgetResizable">
+         <bool>true</bool>
+        </property>
+        <widget class="QWidget" name="scrollAreaWidgetContents_3">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>0</y>
+           <width>849</width>
+           <height>519</height>
+          </rect>
+         </property>
+        </widget>
+       </widget>
+      </widget>
+     </widget>
+     <widget class="QPushButton" name="finish_btn">
+      <property name="geometry">
+       <rect>
+        <x>340</x>
+        <y>580</y>
+        <width>131</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Finish
+Tournament</string>
+      </property>
+     </widget>
+     <zorder>finish_btn</zorder>
+     <zorder>groups_tab</zorder>
     </widget>
     <widget class="QWidget" name="leaderboard_tab">
      <attribute name="title">
@@ -348,7 +461,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>893</width>
+     <width>872</width>
      <height>21</height>
     </rect>
    </property>

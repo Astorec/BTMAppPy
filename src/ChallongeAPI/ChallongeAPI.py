@@ -33,9 +33,9 @@ class ChallongeAPI:
         l = []
         
         for match in m:
-            l.append(Match(match['id'], match['player1_id'], match['player2_id'], 
+            l.append(Match(match['id'], match['player1_id'], match['player2_id'], match['identifier'], match['group_id'],
                            match['player1_prereq_match_id'], match['player2_prereq_match_id'], 
-                           match['round'], match['state'], match['tournament_id']))
+                           match['round'], match['state'], match['tournament_id'], match['scores_csv']))
         return l
     
     def get_participants(self, tournament_id):
