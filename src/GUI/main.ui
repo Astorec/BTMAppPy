@@ -228,103 +228,6 @@ Tournament</string>
      <attribute name="title">
       <string>Bracket</string>
      </attribute>
-     <widget class="QTabWidget" name="groups_tab">
-      <property name="geometry">
-       <rect>
-        <x>6</x>
-        <y>19</y>
-        <width>851</width>
-        <height>551</height>
-       </rect>
-      </property>
-      <property name="currentIndex">
-       <number>0</number>
-      </property>
-      <widget class="QWidget" name="group_a">
-       <attribute name="title">
-        <string>Group A</string>
-       </attribute>
-       <widget class="QScrollArea" name="group_a_scroll_area">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>841</width>
-          <height>521</height>
-         </rect>
-        </property>
-        <property name="widgetResizable">
-         <bool>true</bool>
-        </property>
-        <widget class="QWidget" name="scrollAreaWidgetContents">
-         <property name="geometry">
-          <rect>
-           <x>0</x>
-           <y>0</y>
-           <width>839</width>
-           <height>519</height>
-          </rect>
-         </property>
-        </widget>
-       </widget>
-      </widget>
-      <widget class="QWidget" name="group_b">
-       <attribute name="title">
-        <string>Group B</string>
-       </attribute>
-       <widget class="QScrollArea" name="group_b_scroll_area">
-        <property name="geometry">
-         <rect>
-          <x>-1</x>
-          <y>-1</y>
-          <width>841</width>
-          <height>521</height>
-         </rect>
-        </property>
-        <property name="widgetResizable">
-         <bool>true</bool>
-        </property>
-        <widget class="QWidget" name="scrollAreaWidgetContents_2">
-         <property name="geometry">
-          <rect>
-           <x>0</x>
-           <y>0</y>
-           <width>839</width>
-           <height>519</height>
-          </rect>
-         </property>
-        </widget>
-       </widget>
-      </widget>
-      <widget class="QWidget" name="group_finals">
-       <attribute name="title">
-        <string>Finals</string>
-       </attribute>
-       <widget class="QScrollArea" name="group_finals_scroll_area">
-        <property name="geometry">
-         <rect>
-          <x>-1</x>
-          <y>-1</y>
-          <width>851</width>
-          <height>521</height>
-         </rect>
-        </property>
-        <property name="widgetResizable">
-         <bool>true</bool>
-        </property>
-        <widget class="QWidget" name="scrollAreaWidgetContents_3">
-         <property name="geometry">
-          <rect>
-           <x>0</x>
-           <y>0</y>
-           <width>849</width>
-           <height>519</height>
-          </rect>
-         </property>
-        </widget>
-       </widget>
-      </widget>
-     </widget>
      <widget class="QPushButton" name="finish_btn">
       <property name="geometry">
        <rect>
@@ -339,8 +242,63 @@ Tournament</string>
 Tournament</string>
       </property>
      </widget>
-     <zorder>finish_btn</zorder>
-     <zorder>groups_tab</zorder>
+     <widget class="QComboBox" name="bracket_list">
+      <property name="geometry">
+       <rect>
+        <x>65</x>
+        <y>10</y>
+        <width>121</width>
+        <height>24</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLabel" name="bracket_label">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>10</y>
+        <width>62</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Group</string>
+      </property>
+     </widget>
+     <widget class="QScrollArea" name="bracket_scroll_area">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>50</y>
+        <width>831</width>
+        <height>511</height>
+       </rect>
+      </property>
+      <property name="widgetResizable">
+       <bool>true</bool>
+      </property>
+      <widget class="QWidget" name="bracket_contents">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>829</width>
+         <height>509</height>
+        </rect>
+       </property>
+       <widget class="QWidget" name="gridLayoutWidget">
+        <property name="geometry">
+         <rect>
+          <x>9</x>
+          <y>19</y>
+          <width>811</width>
+          <height>481</height>
+         </rect>
+        </property>
+        <layout class="QGridLayout" name="bracket_grid"/>
+       </widget>
+      </widget>
+     </widget>
     </widget>
     <widget class="QWidget" name="leaderboard_tab">
      <attribute name="title">

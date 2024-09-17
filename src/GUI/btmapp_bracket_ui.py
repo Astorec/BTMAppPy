@@ -4,26 +4,35 @@ from Classes.match import Match
 from Classes.participant import Participant
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QTabWidget, QScrollArea, QFrame, QGroupBox, QSizePolicy, QSpinBox, QGridLayout, QVBoxLayout, QLabel, QComboBox,QDialogButtonBox, QInputDialog,QTableWidgetItem, QCheckBox, QTextEdit, QWidget, QHBoxLayout, QPushButton, QDialog
-from PyQt6 import uic
+from PyQt6 import uic, sip
 
 class BracketUI(QWidget):
     
     def __init__(self, parent): # Accept parent_widget reference
         super().__init__(parent)
         self.parent_widget = parent
-        self.groups_tab = self.parent_widget.findChild(QTabWidget, 'groups_tab')
-        if self.groups_tab is None:
-            print("Groups tab not found")
+        
+        self.bracket_list = self.parent_widget.findChild(QComboBox, 'bracket_list')
+        if self.bracket_list is None:
+            print("Bracket list not found")
             return
         
-        self.group_a_tab = self.groups_tab.findChild(QWidget, 'group_a')
-        self.group_b_tab = self.groups_tab.findChild(QWidget, 'group_b')
-        self.group_finals_tab = self.groups_tab.findChild(QWidget, 'group_finals')
+        self.bracket_list.addItem("Group A")
+        self.bracket_list.addItem("Group B")
+        self.bracket_list.addItem("Finals")
+        
+        self.bracket_list.currentIndexChanged.connect(self.swap_grid)
 
-        if self.group_a_tab is None or self.group_b_tab is None or self.group_finals_tab is None:
-            print("Group tabs not found")
+        self.bracket_label = self.parent_widget.findChild(QLabel, 'bracket_label')
+
+        self.bracket_scroll_area = self.parent_widget.findChild(QScrollArea, 'bracket_scroll_area')
+        if self.bracket_scroll_area is None:
+            print("Bracket scroll area not found")
             return
         
+        self.bracket_contents = self.bracket_scroll_area.findChild(QWidget, 'bracket_contents')
+        self.bracket_grid = self.bracket_contents.findChild(QGridLayout, 'bracket_grid')
+
 
     def InitUi(self):
         print("Bracket UI")
@@ -74,12 +83,6 @@ class BracketUI(QWidget):
                 new_bracket = CreateBracket(match, self.p1, self.p2)
                 
                 new_bracket.setObjectName("bracket_" + str(count))
-                #new_bracket.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-
-                # DEBUG - make sure the bracket is created
-                if new_bracket is None:
-                    print("Bracket not created")
-                    return
 
                 if match.get_group_id() == lowest_id:
                     # Add the bracket to the correct group tab
@@ -90,148 +93,75 @@ class BracketUI(QWidget):
                     self.match_widgets_finals.append(new_bracket)
 
             if self.match_widgets_a != None and self.match_widgets_b:
-                # remove current tab if there is only one
-                if self.groups_tab.count() == 1:
-                    self.groups_tab.removeTab(0)
-                # check if group a and b tabs exist and add them, then set the order of tabs
-                if self.group_a_tab is None:
-                    self.group_a_tab = QWidget()
-                    self.group_a_tab.setObjectName("group_a")
-                    self.groups_tab.addTab(self.group_a_tab, "Group A")
-                if self.group_b_tab is None:
-                    self.group_b_tab = QWidget()
-                    self.group_b_tab.setObjectName("group_b")
-                    self.groups_tab.addTab(self.group_b_tab, "Group B")
-                if self.group_finals_tab is None:
-                    self.group_finals_tab = QWidget()
-                    self.group_finals_tab.setObjectName("group_finals")
-                    self.groups_tab.addTab(self.group_finals_tab, "Finals")
-
-                self.create_grid_a()
-                self.create_grid_b()
+                # Make bracket list visible
+                self.bracket_list.setVisible(True)
+                self.bracket_label.setVisible(True)
+                self.create_grid("Group A")
             else:
-                # Remove Group a and B tabs
-                self.groups_tab.removeTab(0)
-                self.groups_tab.removeTab(0)
-                
-                # rename finals tab
-                self.groups_tab.setTabText(0, "Matches")
-            self.create_grid_finals()
-
-    def create_grid_a(self):
-        self.scrollAreaWidgetContents_a = QWidget()
-        
-        self.bracket_grid_a = QGridLayout(self.scrollAreaWidgetContents_a)
-        self.bracket_grid_a.setObjectName("bracket_grid")
-
-        # if scroll area is not empty, clear it
-        for i in reversed(range(self.bracket_grid_a.count())): 
-            self.bracket_grid_a.itemAt(i).widget().setParent(None)
-
-        for i in reversed(range(self.scrollAreaWidgetContents_a.layout().count())):
-            self.scrollAreaWidgetContents_a.layout().itemAt(i).widget().setParent(None)
-
-        self.scrollAreaWidgetContents_a.setLayout(self.bracket_grid_a)
+                self.bracket_list.setVisible(False)
+                self.bracket_label.setVisible(False)
+                self.create_grid("Finals")
 
 
-        # Ensure the scroll area is resizable
-        self.scrollAreaWidgetContents_a.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        
+    def create_grid(self, group):
+        for i in reversed(range(self.bracket_grid.count())):
+            widgetToRemove = self.bracket_grid.itemAt(i).widget()
+            widgetToRemove.setParent(None)
+            widgetToRemove.deleteLater()
+
+        match (group):
+            case "Group A":
+                self.widgets = self.match_widgets_a
+            case "Group B":
+                self.widgets = self.match_widgets_b
+            case "Finals":
+                self.widgets = self.match_widgets_finals
+
         column = 0
         row = 0
-        for i in range(0, len(self.match_widgets_a)):
-            self.bracket_grid_a.addWidget(self.match_widgets_a[i], row, column)
+        for i in range(0, len(self.widgets)):
+            self.bracket_grid.addWidget(self.widgets[i], row, column)
             column += 1
             if column == 2:
                 column = 0
-
             if column == 0:
                 row += 1
 
-        self.tmp_layout_a = QHBoxLayout()
-        self.tmp_layout_a.addWidget(self.scrollAreaWidgetContents_a)
-        self.group_a_tab.findChild(QScrollArea, "group_a_scroll_area").setWidgetResizable(True)
-        self.group_a_tab.findChild(QScrollArea, "group_a_scroll_area").setWidget(self.scrollAreaWidgetContents_a)
-        self.group_a_tab.findChild(QScrollArea, "group_a_scroll_area").setLayout(self.tmp_layout_a)
-        self.group_a_tab.findChild(QScrollArea, "group_a_scroll_area").setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.bracket_scroll_area.setLayout(self.bracket_grid)  # Set layout directly on scroll area
+        self.bracket_scroll_area.setWidgetResizable(True)
+        self.bracket_scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-    def create_grid_b(self):
-        self.scrollAreaWidgetContents_b = QWidget()
-        
-        self.bracket_grid_b = QGridLayout(self.scrollAreaWidgetContents_b)
-        self.bracket_grid_b.setObjectName("bracket_grid")
+    def create_brackets(self, group):
+        match(group):
+            case "Group A":
+                self.match_widgets = self.match_widgets_a
+            case "Group B":
+                self. match_widgets = self.match_widgets_b
+            case "Finals":
+                self.match_widgets = self.match_widgets_finals
 
-        # reset layouts if they are not empty
-        for i in reversed(range(self.bracket_grid_b.count())): 
-            self.bracket_grid_b.itemAt(i).widget().setParent(None)
-        
-        for i in reversed(range(self.scrollAreaWidgetContents_b.layout().count())): 
-            self.scrollAreaWidgetContents_b.layout().itemAt(i).widget().setParent(None)
+        # Create or update CreateBracket objects based on matches
+        for match in self.matches:
+            if len(self.match_widgets) < len(self.matches):
+                new_bracket = CreateBracket(match, None, None)
+                self.match_widgets.append(new_bracket)
 
-        self.scrollAreaWidgetContents_b.setLayout(self.bracket_grid_b)
-
-
-        # Ensure the scroll area is resizable
-        self.scrollAreaWidgetContents_b.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        
-        column = 0
-        row = 0
-        for i in range(0, len(self.match_widgets_b)):
-            self.bracket_grid_b.addWidget(self.match_widgets_b[i], row, column)
-            column += 1
-            if column == 2:
-                column = 0
-
-            if column == 0:
-                row += 1
-
-        self.tmp_layout_b = QHBoxLayout()
-        self.tmp_layout_b.addWidget(self.scrollAreaWidgetContents_b)
-        self.group_b_tab.findChild(QScrollArea, "group_b_scroll_area").setWidgetResizable(True)
-        self.group_b_tab.findChild(QScrollArea, "group_b_scroll_area").setWidget(self.scrollAreaWidgetContents_b)
-        self.group_b_tab.findChild(QScrollArea, "group_b_scroll_area").setLayout(self.tmp_layout_b)
-        self.group_b_tab.findChild(QScrollArea, "group_b_scroll_area").setAlignment(Qt.AlignmentFlag.AlignCenter)
-    
-    def create_grid_finals(self):
-        scrollAreaWidgetContents_finals = QWidget()
-        
-        bracket_grid_finals = QGridLayout(scrollAreaWidgetContents_finals)
-        bracket_grid_finals.setObjectName("bracket_grid")
-
-        scrollAreaWidgetContents_finals.setLayout(bracket_grid_finals)
-
-
-        # Ensure the scroll area is resizable
-        scrollAreaWidgetContents_finals.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        
-        column = 0
-        row = 0
-        for i in range(0, len(self.match_widgets_finals)):
-            bracket_grid_finals.addWidget(self.match_widgets_finals[i], row, column)
-            column += 1
-            if column == 2:
-                column = 0
-
-            if column == 0:
-                row += 1
-
-        tmp_layout_finals = QHBoxLayout()
-        tmp_layout_finals.addWidget(scrollAreaWidgetContents_finals)
-        self.group_finals_tab.findChild(QScrollArea, "group_finals_scroll_area").setWidgetResizable(True)
-        self.group_finals_tab.findChild(QScrollArea, "group_finals_scroll_area").setWidget(scrollAreaWidgetContents_finals)
-        self.group_finals_tab.findChild(QScrollArea, "group_finals_scroll_area").setLayout(tmp_layout_finals)
-        self.group_finals_tab.findChild(QScrollArea, "group_finals_scroll_area").setAlignment(Qt.AlignmentFlag.AlignCenter)
+    def swap_grid(self):
+        self.create_grid(self.bracket_list.currentText())
 
     def reset_bracket_ui(self):
-
         self.InitUi()
+
+    def deleteWidgets(self, layout):
+        if layout is not None:
+            while layout.count():
+                item = layout.takeAt(0)
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
+                else:  
+                    self.deleteWidgets(item.layout())   
    
-        
-
-
-   
-
-
 
 class CreateBracket(QWidget):
     def __init__(self, Match, p1, p2):
