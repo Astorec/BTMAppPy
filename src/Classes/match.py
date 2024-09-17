@@ -1,6 +1,7 @@
 class Match:
     __id = 0
     __identifier = ""
+    __round = 0
     __group_id = ""
     __loserId = 0
     __winnerId = 0
@@ -18,12 +19,16 @@ class Match:
         self.__player1Id = player1Id
         self.__player2Id = player2Id
         self.__identifier = identifier
+        self.__round = round
         self.__group_id = group_id
         self.__state = state
         self.__tournamentId = tournamentId
     
     def get_id(self):
         return self.__id
+    
+    def get_tournament_id(self):
+        return self.__tournamentId
     
     def get_player1_id(self):
         return self.__player1Id
@@ -47,4 +52,15 @@ class Match:
     
     def get_state(self):
         return self.__state
+    
+    def get_round(self):
+        return self.__round
+    
+    def complete_match(self, winner_id, loser_id, p1_score, p2_score):
+        self.__winnerId = winner_id
+        self.__loserId = loser_id
+        self.__scores_csv = "{}-{}".format(p1_score, p2_score)
+        self.__state = "complete"
+        return self
+
     

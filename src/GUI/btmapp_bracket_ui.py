@@ -2,8 +2,8 @@ from ChallongeAPI.ChallongeAPI import ChallongeAPI
 from Components.btmapp_get_config import GetConfig
 from Classes.match import Match
 from Classes.participant import Participant
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QTabWidget, QScrollArea, QFrame, QGroupBox, QSizePolicy, QSpinBox, QGridLayout, QVBoxLayout, QLabel, QComboBox,QDialogButtonBox, QInputDialog,QTableWidgetItem, QCheckBox, QTextEdit, QWidget, QHBoxLayout, QPushButton, QDialog
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QTabWidget, QScrollArea, QFrame, QGroupBox, QSizePolicy, QSpinBox, QGridLayout, QVBoxLayout, QLabel, QComboBox, QDialogButtonBox, QInputDialog, QTableWidgetItem, QCheckBox, QTextEdit, QWidget, QHBoxLayout, QPushButton, QDialog
 from PyQt6 import uic, sip
 
 class BracketUI(QWidget):
@@ -33,30 +33,30 @@ class BracketUI(QWidget):
         self.bracket_contents = self.bracket_scroll_area.findChild(QWidget, 'bracket_contents')
         self.bracket_grid = self.bracket_contents.findChild(QGridLayout, 'bracket_grid')
 
-
     def InitUi(self):
-        print("Bracket UI")
-
         self.config = GetConfig.read_config()
-
-        if self.config['CHALLONGE']['USERNAME'] != "" or self.config['CHALLONGE']['API_KEY'] != "":
-            c_api = ChallongeAPI(self.config['CHALLONGE']['USERNAME'], self.config['CHALLONGE']['API_KEY'])
-            current_torunament = self.config['TOURNAMENT_DETAILS']['URL']
-            tournament = c_api.get_tournament(current_torunament)
-            participants = c_api.get_participants(tournament.get_id())
-            self.matches = c_api.get_matches(tournament.get_id())
-
         
+        if self.config['CHALLONGE']['USERNAME'] != "" or self.config['CHALLONGE']['API_KEY'] != "":
+            self.c_api = ChallongeAPI(self.config['CHALLONGE']['USERNAME'], self.config['CHALLONGE']['API_KEY'])
+          
+            current_torunament = self.config['TOURNAMENT_DETAILS']['URL']
+            tournament = self.c_api.get_tournament(current_torunament)
+            participants = self.c_api.get_participants(tournament.get_id())
+            self.matches = self.c_api.get_matches(tournament.get_id())
+            for i in range(self.bracket_grid.count()):
+                self.bracket_grid.itemAt(i).widget().deleteLater()
+
+            # Initialize lists to keep references to the widgets
             self.match_widgets_a = []
             self.match_widgets_b = []
             self.match_widgets_finals = []
+            self.widgets = []
 
             # Get the highest and lowest id for the group id from matches
             highest_id = 0
             lowest_id = 0
             for match in self.matches:
-                if match.get_group_id() != None:
-                
+                if match.get_group_id() is not None:
                     if match.get_group_id() > highest_id:
                         highest_id = match.get_group_id()
                     if match.get_group_id() < highest_id:
@@ -76,23 +76,31 @@ class BracketUI(QWidget):
                             self.p2 = participant
                         if self.p1 is not None and self.p2 is not None:
                             break
-                except (Exception) as e:
+                except Exception as e:
                     print("Error getting participants: " + str(e))
                     return
 
                 new_bracket = CreateBracket(match, self.p1, self.p2)
-                
                 new_bracket.setObjectName("bracket_" + str(count))
 
+                new_bracket.bracket_updated.connect(self.refresh_ui)
+                
                 if match.get_group_id() == lowest_id:
                     # Add the bracket to the correct group tab
-                    self.match_widgets_a.append(new_bracket)
+                    self.match_widgets_a.append(new_bracket)               
+                    
                 elif match.get_group_id() == highest_id:
                     self.match_widgets_b.append(new_bracket)
                 else:
                     self.match_widgets_finals.append(new_bracket)
 
-            if self.match_widgets_a != None and self.match_widgets_b:
+            # order each match widget by round
+            self.match_widgets_a.sort(key=lambda x: x.match.get_round())
+            self.match_widgets_b.sort(key=lambda x: x.match.get_round())
+            self.match_widgets_finals.sort(key=lambda x: x.match.get_round())
+            
+            
+            if self.match_widgets_a and self.match_widgets_b:
                 # Make bracket list visible
                 self.bracket_list.setVisible(True)
                 self.bracket_label.setVisible(True)
@@ -102,14 +110,8 @@ class BracketUI(QWidget):
                 self.bracket_label.setVisible(False)
                 self.create_grid("Finals")
 
-
     def create_grid(self, group):
-        for i in reversed(range(self.bracket_grid.count())):
-            widgetToRemove = self.bracket_grid.itemAt(i).widget()
-            widgetToRemove.setParent(None)
-            widgetToRemove.deleteLater()
-
-        match (group):
+        match group:
             case "Group A":
                 self.widgets = self.match_widgets_a
             case "Group B":
@@ -119,40 +121,80 @@ class BracketUI(QWidget):
 
         column = 0
         row = 0
-        for i in range(0, len(self.widgets)):
+        round = 0
+        
+        for i in range(len(self.widgets)):
+            # get the match from the widget
+            match = self.widgets[i].match
+            if match.get_round() > round and group != "Finals":
+                round += 1
+                self.round_label = QLabel("Round " + str(round))
+                self.round_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.bracket_grid.addWidget(self.round_label, row, column, 1, 2)
+                row += 1
+            
             self.bracket_grid.addWidget(self.widgets[i], row, column)
+            
+            # set cell to same size as widget
+            self.bracket_grid.setRowStretch(row, 1)
+            self.bracket_grid.setColumnStretch(column, 1)
             column += 1
             if column == 2:
                 column = 0
-            if column == 0:
                 row += 1
 
-        self.bracket_scroll_area.setLayout(self.bracket_grid)  # Set layout directly on scroll area
-        self.bracket_scroll_area.setWidgetResizable(True)
-        self.bracket_scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
+ 
+        self.bracket_grid.setSpacing(10)
+        # Add bracket_grid to contents
+        grid_widget = QWidget()
+        grid_widget.setLayout(self.bracket_grid)
+        
+        # Set the grid widget as the content of the scroll area
+        self.bracket_scroll_area.setWidget(grid_widget)
 
-    def create_brackets(self, group):
-        match(group):
-            case "Group A":
-                self.match_widgets = self.match_widgets_a
-            case "Group B":
-                self. match_widgets = self.match_widgets_b
-            case "Finals":
-                self.match_widgets = self.match_widgets_finals
 
-        # Create or update CreateBracket objects based on matches
-        for match in self.matches:
-            if len(self.match_widgets) < len(self.matches):
-                new_bracket = CreateBracket(match, None, None)
-                self.match_widgets.append(new_bracket)
+        # Make sure scroll area is scrollable
+        self.bracket_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.bracket_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+                        
+    def refresh_ui(self):
+        self.reset_bracket_ui()
+    
+    def edit_bracket(self):
+        pass
 
-    def swap_grid(self):
-        self.create_grid(self.bracket_list.currentText())
+    def swap_grid(self):                
+        # Get the selected group
+        group = self.bracket_list.currentText()
+        self.create_grid(group)
+        
+        # Hide all other widgets
+        if group == "Group A":
+            for widget in self.match_widgets_b:
+                widget.setVisible(False)
+            for widget in self.match_widgets_finals:
+                widget.setVisible(False)
+            for widget in self.match_widgets_a:
+                widget.setVisible(True)
+        elif group == "Group B":
+            for widget in self.match_widgets_a:
+                widget.setVisible(False)
+            for widget in self.match_widgets_finals:
+                widget.setVisible(False)
+            for widget in self.match_widgets_b:
+                widget.setVisible(True)
+        else:
+            for widget in self.match_widgets_a:
+                widget.setVisible(False)
+            for widget in self.match_widgets_b:
+                widget.setVisible(False)
+            for widget in self.match_widgets_finals:
+                widget.setVisible(True)
 
     def reset_bracket_ui(self):
         self.InitUi()
 
-    def deleteWidgets(self, layout):
+    def delete_widgets(self, layout):
         if layout is not None:
             while layout.count():
                 item = layout.takeAt(0)
@@ -160,18 +202,19 @@ class BracketUI(QWidget):
                 if widget is not None:
                     widget.deleteLater()
                 else:  
-                    self.deleteWidgets(item.layout())   
-   
+                    self.delete_widgets(item.layout())
 
 class CreateBracket(QWidget):
-    def __init__(self, Match, p1, p2):
+    bracket_updated = pyqtSignal()
+    def __init__(self, match, p1, p2):
         super().__init__()
         uic.loadUi('./src/GUI/bracket_widget.ui', self)
         self.bracket_layout = QHBoxLayout()
         self.bracket_layout.setContentsMargins(10, 10, 10, 10)
-        self.setMinimumSize(213, 76)
-        self.setMaximumSize(213, 76)
+        self.setMinimumSize(321, 111)
+        self.setMaximumSize(321, 111)
         self.bracket_layout.addSpacing(10)
+    
 
 
         # Create padding between each bracket
@@ -179,30 +222,42 @@ class CreateBracket(QWidget):
         self.p2_label = self.findChild(QLabel, 'p2_label')
         self.p1_score = self.findChild(QSpinBox, 'p1_score')
         self.p2_score = self.findChild(QSpinBox, 'p2_score')
-        self.vs_label = self.findChild(QLabel, 'vs_label')
         
         self.complete_button = self.findChild(QPushButton, 'complete_btn')
+        self.complete_button.setVisible(True)
         self.edit_button = self.findChild(QPushButton, 'edit_btn')
-        self.match = Match
+        self.edit_button.setVisible(False)
+        self.match = match
         self.p1 = p1
         self.p2 = p2
 
-   
+        self.complete_button.clicked.connect(self.complete_bracket)
+        self.edit_button.clicked.connect(self.edit_bracket)
         if self.p1 is not None and self.p2 is not None:
-
             p1_length = len(self.p1.get_name())
             p2_length = len(self.p2.get_name())
+
+            # Set the length of the label to the longest name
             if p1_length > p2_length:
-                self.p2_label.setFixedWidth(p1_length * 10)
+                self.p1_label.setMinimumWidth(p1_length * 10)
+                self.p2_label.setMinimumWidth(p1_length * 10)
             else:
-                self.p1_label.setFixedWidth(p2_length * 10)
+                self.p1_label.setMinimumWidth(p2_length * 10)
+                self.p2_label.setMinimumWidth(p2_length * 10)
+                
+            # Set Padding between labels, scores and buttons
+            self.p1_label.setContentsMargins(100, 0, 100, 0)
+            self.p2_label.setContentsMargins(100, 0, 100, 0)
 
-
+        if match.get_state() == "complete":
+            self.complete_button.setVisible(False)
+            self.edit_button.setVisible(True)
+            self.p1_score.setEnabled(False)
+            self.p2_score.setEnabled(False)
         self.create_bracket()
 
     def create_bracket(self):
         try:
-               
             if self.p1 is None:
                 self.p1_label.setText("TBD")
             else:
@@ -213,14 +268,62 @@ class CreateBracket(QWidget):
             else:
                 self.p2_label.setText(self.p2.get_name())
 
-
             scores = self.match.get_scores()
             if scores is not None:
                 scores = scores.split("-")
                 # Set the scores
                 self.p1_score.setValue(int(scores[0]))
-        except (Exception) as e:
+                self.p2_score.setValue(int(scores[1]))
+        except Exception as e:
             print("Error creating bracket: " + str(e))
-
-
+            
+    def complete_bracket(self):
+      
+        match = self.match
         
+        # get the scores from the widget
+        p1_score = self.p1_score.value()
+        p2_score = self.p2_score.value()
+        
+        # get the winner
+        if p1_score > p2_score:
+            winner = match.get_player1_id()
+            loser = match.get_player2_id()
+        else:
+            winner = match.get_player2_id()
+            loser =  match.get_player1_id()
+        
+        # get the tournament id
+        tournament_id = match.get_tournament_id()
+        
+        completed_match = match.complete_match(winner, loser, p1_score, p2_score)
+        
+        c_api = ChallongeAPI(GetConfig.read_config()['CHALLONGE']['USERNAME'], GetConfig.read_config()['CHALLONGE']['API_KEY'])
+        c_api.set_match_scores(tournament_id, completed_match.get_id(), completed_match.get_scores(), winner, loser)
+        
+        self.bracket_updated.emit()
+        
+        # Update the widget to show that the match is complete
+        self.complete_button.setVisible(False)
+        self.edit_button.setVisible(True)
+        self.p1_score.setEnabled(False)
+        self.p2_score.setEnabled(False)
+    
+    def edit_bracket(self):
+        match = self.match
+        
+        
+        c_api = ChallongeAPI(GetConfig.read_config()['CHALLONGE']['USERNAME'], GetConfig.read_config()['CHALLONGE']['API_KEY'])
+        c_api.undo_match(match.get_tournament_id(), match.get_id())
+        
+        self.bracket_updated.emit()
+        
+        self.complete_button.setVisible(True)
+        self.edit_button.setVisible(False)
+        self.p1_score.setEnabled(True)
+        self.p2_score.setEnabled(True)
+        self.p1_score.setValue(0)
+        self.p2_score.setValue(0)
+        
+    
+    

@@ -177,3 +177,4 @@ tempCodeRunnerFile.py
 #ignore bin folder
 bin/
 config.ini
+KeyStore.jks
