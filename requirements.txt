@@ -40,7 +40,7 @@ jaraco.path==3.7.1
 jaraco.vcs==2.4.0
 jaraco.versioning==1.1.0
 Jinja2>=3.0
-MarkupSafe==1.1.1
+MarkupSafe>=2.0
 materialyoucolor==2.0.9
 more-itertools==10.4.0
 natsort==8.4.0
