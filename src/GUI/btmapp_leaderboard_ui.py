@@ -15,7 +15,12 @@ class LeaderboardUI(QWidget):
         self.sheet_id = self.config['GOOGLE_SHEETS']['URL']
 
         if self.sheet_id == "Enter your Google Sheets URL here" or self.sheet_id == "":
-            self.sheet_id = self.get_sheet_id()
+            # Display a dialog box to get the Google Sheets URL
+            text, ok = QInputDialog.getText(self, 'Google Sheets URL', 'Enter the Google Sheets URL:')
+            if ok:
+                self.config['GOOGLE_SHEETS']['URL'] = text
+                GetConfig.write_config(self.config)
+                self.sheet_id = text
         
         self.sheets = BTMAppSheets(self.sheet_id)
 

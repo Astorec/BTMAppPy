@@ -13,7 +13,7 @@ class Match:
     __state = ""
     __tournamentId = 0
     
-    def __init__ (self, id, player1Id, player2Id, identifier, group_id, player1PrereqMatchId, player2PrereqMatchId, round, state, tournamentId, scores_csv):
+    def __init__ (self, id, player1Id, player2Id, identifier, group_id, player1PrereqMatchId, player2PrereqMatchId, round, state, tournamentId, scores_csv, winner_id, loser_id):
         self.__id = id
         self.__scores_csv = scores_csv
         self.__player1Id = player1Id
@@ -23,6 +23,8 @@ class Match:
         self.__group_id = group_id
         self.__state = state
         self.__tournamentId = tournamentId
+        self.__winnerId = winner_id
+        self.__loserId = loser_id
     
     def get_id(self):
         return self.__id

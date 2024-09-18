@@ -33,18 +33,12 @@ class SettingsUI(QWidget):
     def save_config(self):
         if self.username_text.toPlainText() != None:
             self.config['CHALLONGE']['USERNAME'] = self.username_text.toPlainText()
-        else:
-            self.config['CHALLONGE']['USERNAME'] = "Enter your Challonge username here"
 
         if self.api_text.toPlainText() != None:
             self.config['CHALLONGE']['API_KEY'] = self.api_text.toPlainText()
-        else:
-            self.config['CHALLONGE']['API_KEY'] = "Enter your Challonge API key here"
 
         if self.sheetid_text.toPlainText() != None:
             self.config['GOOGLE_SHEETS']['URL'] = self.sheetid_text.toPlainText()
-        else:
-            self.config['GOOGLE_SHEETS']['URL'] = "Enter your Google Sheets URL here"
-
+            
         GetConfig.write_config(self.config)
         self.saved.setVisible(True)

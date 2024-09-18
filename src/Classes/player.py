@@ -8,6 +8,7 @@ class Player:
     __checkInState = False
     __checkInTime = datetime.min
     __challongeId = ""
+    __group_id = 0
     __leaderBoardRank = "n/a"
     __points = 0
     __wins = 0
@@ -19,9 +20,10 @@ class Player:
     __raiting = 0
     __region = ""
     
-    def __init__(self, name, challongeId):
+    def __init__(self, name, challongeId, group_id):
         self.__name = name
         self.__challongeId = challongeId
+        self.__group_id = group_id
     
     def updateScore(self, wins, losses):
         self.__wins += wins
@@ -35,18 +37,13 @@ class Player:
     
     def addThird(self):
         self.__third += 1
-    
-    def init_player(self, rank, wins, losses, first, second, third, points, win_percentage, raiting):
-        self.__leaderBoardRank = rank
-        self.__wins = wins
-        self.__loses = losses
-        self.__first = first
-        self.__second = second
-        self.__third = third
-        self.__points = points
-        self.__winPercentage = win_percentage
-        self.__raiting = raiting
         
+    def get_id(self):
+        return self.__challongeId
+    
+    def get_group_id(self):
+        return self.__group_id
+    
     def get_name(self):
         return self.__name
     
@@ -76,3 +73,10 @@ class Player:
     
     def get_raiting(self):
         return self.__raiting
+    
+    def get_region(self):
+        return self.__region
+    
+    def set_rank(self, rank):
+        self.__leaderBoardRank = rank
+        

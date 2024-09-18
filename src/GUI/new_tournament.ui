@@ -89,22 +89,22 @@
    </property>
    <item>
     <property name="text">
-     <string>Single Elimination</string>
+     <string>Round Robin (16 or Less players)</string>
     </property>
    </item>
    <item>
     <property name="text">
-     <string>Double Elimination</string>
+     <string>Swiss ( 17 - 64 Players)</string>
     </property>
    </item>
    <item>
     <property name="text">
-     <string>Round Robin</string>
+     <string>Double Elimination ( 33 - 120 Players)</string>
     </property>
    </item>
    <item>
     <property name="text">
-     <string>Swiss</string>
+     <string>Single Elimination (120 + Players)</string>
     </property>
    </item>
    <item>

@@ -1,5 +1,6 @@
 from ChallongeAPI.ChallongeAPI import ChallongeAPI
 from Components.btmapp_get_config import GetConfig
+from Components.btmapp_sheets import BTMAppSheets
 from Classes.match import Match
 from Classes.participant import Participant
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -32,7 +33,9 @@ class BracketUI(QWidget):
         
         self.bracket_contents = self.bracket_scroll_area.findChild(QWidget, 'bracket_contents')
         self.bracket_grid = self.bracket_contents.findChild(QGridLayout, 'bracket_grid')
-
+        self.complete_button = self.parent_widget.findChild(QPushButton, 'finish_btn')
+        self.complete_button.clicked.connect(self.execute_complete)
+        
     def InitUi(self):
         self.config = GetConfig.read_config()
         
@@ -40,9 +43,9 @@ class BracketUI(QWidget):
             self.c_api = ChallongeAPI(self.config['CHALLONGE']['USERNAME'], self.config['CHALLONGE']['API_KEY'])
           
             current_torunament = self.config['TOURNAMENT_DETAILS']['URL']
-            tournament = self.c_api.get_tournament(current_torunament)
-            participants = self.c_api.get_participants(tournament.get_id())
-            self.matches = self.c_api.get_matches(tournament.get_id())
+            self.tournament = self.c_api.get_tournament(current_torunament)
+            participants = self.c_api.get_participants(self.tournament.get_id())
+            self.matches = self.c_api.get_matches(self.tournament.get_id())
             for i in range(self.bracket_grid.count()):
                 self.bracket_grid.itemAt(i).widget().deleteLater()
 
@@ -109,6 +112,9 @@ class BracketUI(QWidget):
                 self.bracket_list.setVisible(False)
                 self.bracket_label.setVisible(False)
                 self.create_grid("Finals")
+                
+            if self.tournament.get_state() == "complete" or self.tournament.get_state() == "pending":
+                self.complete_button.setEnabled(False)
 
     def create_grid(self, group):
         match group:
@@ -156,6 +162,8 @@ class BracketUI(QWidget):
         # Make sure scroll area is scrollable
         self.bracket_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.bracket_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        
+        
                         
     def refresh_ui(self):
         self.reset_bracket_ui()
@@ -203,20 +211,40 @@ class BracketUI(QWidget):
                     widget.deleteLater()
                 else:  
                     self.delete_widgets(item.layout())
-
+    
+    def execute_complete(self):
+        self.c_api.finalize_tournament(self.tournament.get_id())
+        
+        # Hide the edit and complete buttons in the bracket widgets
+        for widget in self.match_widgets_a:
+            widget.complete_button.setVisible(False)
+            widget.edit_button.setVisible(False)
+        
+        for widget in self.match_widgets_b:
+            widget.complete_button.setVisible(False)
+            widget.edit_button.setVisible(False)
+        
+        for widget in self.match_widgets_finals:
+            widget.complete_button.setVisible(False)
+            widget.edit_button.setVisible(False)
+            
+        self.complete_button.setEnabled(False)
+        
 class CreateBracket(QWidget):
     bracket_updated = pyqtSignal()
     def __init__(self, match, p1, p2):
         super().__init__()
         uic.loadUi('./src/GUI/bracket_widget.ui', self)
+        self.config = GetConfig.read_config()        
+        if self.config['GOOGLE_SHEETS']['URL'] != "":
+            self.sheets = BTMAppSheets(self.config['GOOGLE_SHEETS']['URL'])
+            
         self.bracket_layout = QHBoxLayout()
         self.bracket_layout.setContentsMargins(10, 10, 10, 10)
         self.setMinimumSize(321, 111)
         self.setMaximumSize(321, 111)
-        self.bracket_layout.addSpacing(10)
-    
-
-
+        self.bracket_layout.addSpacing(10)  
+        
         # Create padding between each bracket
         self.p1_label = self.findChild(QLabel, 'p1_label')
         self.p2_label = self.findChild(QLabel, 'p2_label')
@@ -274,6 +302,14 @@ class CreateBracket(QWidget):
                 # Set the scores
                 self.p1_score.setValue(int(scores[0]))
                 self.p2_score.setValue(int(scores[1]))
+                
+            c_api = ChallongeAPI(GetConfig.read_config()['CHALLONGE']['USERNAME'], GetConfig.read_config()['CHALLONGE']['API_KEY'])    
+            
+            tournament = c_api.get_tournament(self.match.get_tournament_id())
+            if tournament.get_state() == "complete":
+                self.complete_button.setVisible(False)
+                self.edit_button.setVisible(False)
+                
         except Exception as e:
             print("Error creating bracket: " + str(e))
             
@@ -300,22 +336,50 @@ class CreateBracket(QWidget):
         
         c_api = ChallongeAPI(GetConfig.read_config()['CHALLONGE']['USERNAME'], GetConfig.read_config()['CHALLONGE']['API_KEY'])
         c_api.set_match_scores(tournament_id, completed_match.get_id(), completed_match.get_scores(), winner, loser)
+            
         
         self.bracket_updated.emit()
         
         # Update the widget to show that the match is complete
-        self.complete_button.setVisible(False)
-        self.edit_button.setVisible(True)
+        
+
         self.p1_score.setEnabled(False)
         self.p2_score.setEnabled(False)
+        
+        # Get player names from winner and loser ids
+        winner_name = ""
+        loser_name = ""
+        participants = c_api.get_participants(tournament_id)
+        
+        for participant in participants:
+            if participant.get_id() == winner:
+                winner_name = participant.get_name()
+            if participant.get_id() == loser:
+                loser_name = participant.get_name()
+
+        
+        self.sheets.update_player(tournamnet_sheet, winner_name, loser_name)
     
     def edit_bracket(self):
         match = self.match
-        
-        
         c_api = ChallongeAPI(GetConfig.read_config()['CHALLONGE']['USERNAME'], GetConfig.read_config()['CHALLONGE']['API_KEY'])
-        c_api.undo_match(match.get_tournament_id(), match.get_id())
         
+        # get the tournament id
+        tournament_id = match.get_tournament_id()
+        tournamnet_sheet = c_api.get_tournament(tournament_id).get_related_sheet()
+        participants = c_api.get_participants(tournament_id)
+        
+        winner = ""
+        loser = ""
+        for participant in participants:
+            if participant.get_id() == winner:
+                winner_name = participant.get_name()
+            if participant.get_id() == loser:
+                loser_name = participant.get_name()
+        
+        
+        c_api.undo_match(match.get_tournament_id(), match.get_id())
+        self.sheets.undo_update_player(tournamnet_sheet, winner_name, loser_name)
         self.bracket_updated.emit()
         
         self.complete_button.setVisible(True)
@@ -324,6 +388,3 @@ class CreateBracket(QWidget):
         self.p2_score.setEnabled(True)
         self.p1_score.setValue(0)
         self.p2_score.setValue(0)
-        
-    
-    

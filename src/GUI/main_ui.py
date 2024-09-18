@@ -50,7 +50,7 @@ class Ui_MainWindow(object):
         self.start_btn.setGeometry(QtCore.QRect(370, 540, 131, 81))
         self.start_btn.setObjectName("start_btn")
         self.status_label = QtWidgets.QLabel(parent=self.checkin_tab)
-        self.status_label.setGeometry(QtCore.QRect(140, 590, 191, 16))
+        self.status_label.setGeometry(QtCore.QRect(140, 590, 221, 16))
         self.status_label.setObjectName("status_label")
         self.pcount_label = QtWidgets.QLabel(parent=self.checkin_tab)
         self.pcount_label.setGeometry(QtCore.QRect(140, 610, 191, 16))
@@ -70,6 +70,9 @@ class Ui_MainWindow(object):
         self.current_url = QtWidgets.QLabel(parent=self.checkin_tab)
         self.current_url.setGeometry(QtCore.QRect(530, 590, 311, 16))
         self.current_url.setObjectName("current_url")
+        self.type_label = QtWidgets.QLabel(parent=self.checkin_tab)
+        self.type_label.setGeometry(QtCore.QRect(140, 630, 261, 16))
+        self.type_label.setObjectName("type_label")
         self.tabWidget.addTab(self.checkin_tab, "")
         self.bracket_tab = QtWidgets.QWidget()
         self.bracket_tab.setObjectName("bracket_tab")
@@ -174,6 +177,7 @@ class Ui_MainWindow(object):
         self.tedit_btn.setText(_translate("MainWindow", "Edit\n"
 "Tournament"))
         self.current_url.setText(_translate("MainWindow", "Current URL: temp"))
+        self.type_label.setText(_translate("MainWindow", "Tournament Type - "))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.checkin_tab), _translate("MainWindow", "Check-in"))
         self.finish_btn.setText(_translate("MainWindow", "Finish\n"
 "Tournament"))

@@ -30,7 +30,7 @@ class Tournament:
         if startedAt is not None:
             self.__relatedSheet = "{} - {}".format(name, startedAt.strftime("%d/%m/%Y"))
         else:
-            self.__relatedSheet = "{}-{}".format(name, createdAt)
+            self.__relatedSheet = "{} - {}".format(name, createdAt.strftime("%d/%m/%Y"))
         
     def get_url(self):
         return self.__url
@@ -58,3 +58,6 @@ class Tournament:
     
     def get_created_at(self):
         return self._createdAt
+    
+    def get_tournament_type(self):
+        return self.__tournament_type
