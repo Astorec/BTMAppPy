@@ -124,8 +124,8 @@ class PlayersUI(QWidget):
             
             if self.config['GOOGLE_SHEETS']['URL'] != "":
                 self.sheets = BTMAppSheets(self.config['GOOGLE_SHEETS']['URL'])
-        except:
-            print("Error getting tournament")
+        except (Exception) as e:
+            print("Error getting tournament - " + str(e))
     
     def update_table(self):
         # Get Config
