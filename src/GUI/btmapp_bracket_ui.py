@@ -336,7 +336,9 @@ class CreateBracket(QWidget):
         
         c_api = ChallongeAPI(GetConfig.read_config()['CHALLONGE']['USERNAME'], GetConfig.read_config()['CHALLONGE']['API_KEY'])
         c_api.set_match_scores(tournament_id, completed_match.get_id(), completed_match.get_scores(), winner, loser)
-            
+        
+        # Hacky but doing it for now until for the sake of building the app
+        tournamnet_sheet = c_api.get_tournament(GetConfig.read_config()['TOURNAMENT_DETAILS']['URL']).get_related_sheet()
         
         self.bracket_updated.emit()
         
