@@ -15,6 +15,7 @@ class PlayersUI(QWidget):
         # Get Config
         self.config = GetConfig.read_config()
         self.import_url = self.config['TOURNAMENT_DETAILS']['URL']
+        self.tournament = None
         # Setup API
         if self.config['CHALLONGE']['USERNAME'] != "" or self.config['CHALLONGE']['API_KEY'] != "":
             self.c_api = ChallongeAPI(self.config['CHALLONGE']['USERNAME'], self.config['CHALLONGE']['API_KEY'])

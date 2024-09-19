@@ -41,7 +41,11 @@ class BTMAppSheets:
 
     def get_sheet_names(self):
         try:
-            service = build("sheets", "v4", credentials=self.creds)
+            try:
+                service = build("sheets", "v", credentials=self.creds)
+            except:
+                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
+                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
         
             sheet = service.spreadsheets()
             result = sheet.get(spreadsheetId=self.SHEET_ID).execute()
@@ -56,7 +60,11 @@ class BTMAppSheets:
 
     def get_headers(self, sheetname):
         try:
-            service = build("sheets", "v4", credentials=self.creds)
+            try:
+                service = build("sheets", "v4", credentials=self.creds)
+            except:
+                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
+                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
         
             sheet = service.spreadsheets()
             result = sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
@@ -72,7 +80,11 @@ class BTMAppSheets:
 
     def get_sheet(self, sheetname):  
         try:
-            service = build("sheets", "v4", credentials=self.creds)
+            try:
+                service = build("sheets", "v4", credentials=self.creds)
+            except:
+                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
+                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
         
             sheet = service.spreadsheets()
             result = sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
@@ -108,7 +120,11 @@ class BTMAppSheets:
     # Create a new sheet with the given name
     def create_sheet_empty(self, sheetname):
         try:
-            service = build("sheets", "v4", credentials=self.creds)
+            try:
+                service = build("sheets", "v4", credentials=self.creds)
+            except:
+                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
+                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
             body = {
                 "requests": [{
                     "addSheet": {
@@ -142,7 +158,11 @@ class BTMAppSheets:
     # Create a new sheet with the given name and existing players           
     def create_sheet(self, sheetname, players):
         try:
-            service = build("sheets", "v4", credentials=self.creds)
+            try:
+                service = build("sheets", "v4", credentials=self.creds)
+            except:
+                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
+                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
             body = {
                 "requests": [{
                     "addSheet": {
@@ -205,7 +225,11 @@ class BTMAppSheets:
     
     def add_player(self, sheetname, player):
         try:
-            service = build("sheets", "v4", credentials=self.creds)
+            try:
+                service = build("sheets", "v4", credentials=self.creds)
+            except:
+                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
+                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
         
             # Get the header row and and store the row number of the next empty row
             next_row = len(self.get_sheet(sheetname)) + 1
@@ -232,7 +256,11 @@ class BTMAppSheets:
     
     def remove_player(self, sheetname, player):
         try:
-            service = build("sheets", "v4", credentials=self.creds)
+            try:
+                service = build("sheets", "v4", credentials=self.creds)
+            except:
+                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
+                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
             
             # Find the row number that contains the player
             result = service.spreadsheets().values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
@@ -276,7 +304,11 @@ class BTMAppSheets:
         
     def update_player(self, sheetname, winner, loser):
         try:
-            service = build("sheets", "v4", credentials=self.creds)
+            try:
+                service = build("sheets", "v4", credentials=self.creds)
+            except:
+                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
+                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
             
             sheet = service.spreadsheets()
             result = sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
@@ -334,7 +366,11 @@ class BTMAppSheets:
     
     def undo_update_player(self, sheetname, winner, loser):
         try:
-            service = build("sheets", "v4", credentials=self.creds)
+            try:
+                service = build("sheets", "v4", credentials=self.creds)
+            except:
+                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
+                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
             
             sheet = service.spreadsheets()
             result = sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
@@ -395,7 +431,11 @@ class BTMAppSheets:
             
     def check_sheet_exists(self, sheetname):
         try:
-            service = build("sheets", "v4", credentials=self.creds)
+            try:
+                service = build("sheets", "v4", credentials=self.creds)
+            except:
+                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
+                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
         
             sheet = service.spreadsheets()
             result = sheet.get(spreadsheetId=self.SHEET_ID).execute()
