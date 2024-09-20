@@ -811,3 +811,6 @@ src/BTMPY/lib64
 src/main.dist.zip
 src/main.bin
 src/BTMPY-0.0.1.zip
+src/key.json
+src/main.dist/src/key.json
+src/BTMPY-Linux-0.0.2.zip

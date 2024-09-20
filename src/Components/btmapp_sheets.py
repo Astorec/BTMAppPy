@@ -1,38 +1,43 @@
 import os.path
 import json
+import google.auth
+
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.cloud import secretmanager
+from google.oauth2 import service_account
 
 class BTMAppSheets:
     SCOPES = ["https://www.googleapis.com/auth/drive"]
 
     SHEET_ID = ""
-    creds = None
+    creds, project = google.auth.default(scopes=['https://www.googleapis.com/auth/drive'])
 
     def __init__(self, sheet_id):
 
+        
+        self.creds = service_account.Credentials.from_service_account_file(
+        './src/key.json')
+
+        scoped_credentials = self.creds.with_scopes(
+        ['https://www.googleapis.com/auth/cloud-platform'])
+        
         # Set the sheet id which is located in the google sheet url
         self.SHEET_ID = sheet_id
 
-        # Check to see if we already have a token.json file
-        if os.path.exists('token.json'):
-            self.creds = Credentials.from_authorized_user_file('token.json') # Authorize the user
-        
-        client = secretmanager.SecretManagerServiceClient()
-        name = f"projects/{os.getenv('BTM_CLIENT_SECRET')}/secrets/{os.getenv('BTM_SECRET_ID')}/versions/latest"
-        result = client.access_secret_version(name=name)
-        response = result.payload.data.decode('UTF-8')
-        client_config = json.loads(response)    
-    
         # if there is no valid credentials, then get new credentials
         if not self.creds or not self.creds.valid:
             if self.creds and self.creds.expired and self.creds.refresh_token:
                 self.creds.refresh(Request())
             else:
+                client = secretmanager.SecretManagerServiceClient()
+                name = f"projects/{os.getenv('BTM_CLIENT_SECRET')}/secrets/{os.getenv('BTM_SECRET_ID')}/versions/latest"
+                result = client.access_secret_version(name=name)
+                response = result.payload.data.decode('UTF-8')
+                client_config = json.loads(response)    
                 flow = InstalledAppFlow.from_client_config(client_config, self.SCOPES)
                 self.creds = flow.run_local_server(port=0)
             # Save the credentials for the next run
