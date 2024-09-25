@@ -9,10 +9,10 @@ from PyQt6 import uic, sip
 
 class BracketUI(QWidget):
     
-    def __init__(self, parent): # Accept parent_widget reference
+    def __init__(self, parent, service): # Accept parent_widget reference
         super().__init__(parent)
         self.parent_widget = parent
-        
+    
         self.bracket_list = self.parent_widget.findChild(QComboBox, 'bracket_list')
         if self.bracket_list is None:
             print("Bracket list not found")
@@ -35,6 +35,8 @@ class BracketUI(QWidget):
         self.bracket_grid = self.bracket_contents.findChild(QGridLayout, 'bracket_grid')
         self.complete_button = self.parent_widget.findChild(QPushButton, 'finish_btn')
         self.complete_button.clicked.connect(self.execute_complete)
+
+        self.service = service
         
     def InitUi(self):
         self.config = GetConfig.read_config()
@@ -83,7 +85,7 @@ class BracketUI(QWidget):
                     print("Error getting participants: " + str(e))
                     return
 
-                new_bracket = CreateBracket(match, self.p1, self.p2)
+                new_bracket = CreateBracket(match, self.p1, self.p2, BTMAppSheets(self.config['GOOGLE_SHEETS']['URL'], self.service))
                 new_bracket.setObjectName("bracket_" + str(count))
 
                 new_bracket.bracket_updated.connect(self.refresh_ui)
@@ -232,12 +234,11 @@ class BracketUI(QWidget):
         
 class CreateBracket(QWidget):
     bracket_updated = pyqtSignal()
-    def __init__(self, match, p1, p2):
+    def __init__(self, match, p1, p2, sheets):
         super().__init__()
+        self.sheets = sheets
         uic.loadUi('./src/GUI/bracket_widget.ui', self)
         self.config = GetConfig.read_config()        
-        if self.config['GOOGLE_SHEETS']['URL'] != "":
-            self.sheets = BTMAppSheets(self.config['GOOGLE_SHEETS']['URL'])
             
         self.bracket_layout = QHBoxLayout()
         self.bracket_layout.setContentsMargins(10, 10, 10, 10)
@@ -390,3 +391,6 @@ class CreateBracket(QWidget):
         self.p2_score.setEnabled(True)
         self.p1_score.setValue(0)
         self.p2_score.setValue(0)
+    
+    def update_sheet(self, winner, loser, group = None):
+        self.sheets.update_player(winner, loser, group)

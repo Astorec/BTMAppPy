@@ -5,11 +5,14 @@ from Classes.player import Player
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QVBoxLayout, QTableWidget, QLabel, QComboBox,QDialogButtonBox, QInputDialog,QTableWidgetItem, QCheckBox, QTextEdit, QWidget, QHBoxLayout, QPushButton, QDialog
 from PyQt6 import uic
+from Components.btmapp_gauth import GAuth
+
 class PlayersUI(QWidget):
     
-    def __init__(self, parent): # Accept parent_widget reference
+    def __init__(self, parent, service): # Accept parent_widget reference
         super().__init__(parent)
         self.parent_widget = parent
+        self.service = service
         
     def InitUi(self):     
         # Get Config
@@ -36,7 +39,12 @@ class PlayersUI(QWidget):
         self.player_count = self.parent_widget.findChild(QLabel, 'pcount_label')
         self.start_button = self.parent_widget.findChild(QPushButton, 'start_btn')
         self.type_label = self.parent_widget.findChild(QLabel, 'type_label')
-        
+        self.players_group_a = []
+        self.players_group_b = []
+        self.players_group_finals = []
+        self.players_group_none = []
+        self.players = []
+
         if self.tournament is not None:
             self.type_label.setText("Tournament Type: " + self.tournament.get_tournament_type())
         
@@ -65,6 +73,7 @@ class PlayersUI(QWidget):
             self.status_label.setText("Tournament Status: " + self.tournament.get_state())
             self.player_count.setText("Player Count: " + str(self.tournament.get_participants_count()))
             self.type_label.setText("Tournament Type: " + self.tournament.get_tournament_type())
+
             
             if self.tournament.get_state() == "pending":
                 self.start_button.setEnabled(True)
@@ -100,6 +109,7 @@ class PlayersUI(QWidget):
             
             self.player_table.setRowCount(len(participants))
             self.player_table.setColumnCount(4)
+
             # Set the headers
             self.player_table.setHorizontalHeaderLabels(["Player", "Region", "Checked in At", "Checked In"])
             
@@ -117,14 +127,19 @@ class PlayersUI(QWidget):
                             layout.setContentsMargins(0, 0, 0, 0)
                             checkbox_widget.setLayout(layout)
                             self.player_table.setCellWidget(i, 3, checkbox_widget)
+
+                            # Add player to list if not already in the global list
+                            if participants[i].get_name() not in self.players:
+                                self.players.append(self.format_player(participants[i]))
                         case 2:                        
                             if participants[i].get_checked_in():
                                 item = QTableWidgetItem(participants[i].get_checked_in_at())
                                 self.player_table.setItem(i, j, item)
+
             self.update_ui()
             
             if self.config['GOOGLE_SHEETS']['URL'] != "":
-                self.sheets = BTMAppSheets(self.config['GOOGLE_SHEETS']['URL'])
+                self.sheets = BTMAppSheets(self.config['GOOGLE_SHEETS']['URL'], self.service)
         except (Exception) as e:
             print("Error getting tournament - " + str(e))
     
@@ -183,7 +198,113 @@ class PlayersUI(QWidget):
                 self.update_ui()
             except:
                 print("Error getting tournament")
-            
+
+    def assign_to_group(self, player, group = None):
+        match(group):
+            case "A":
+                # Check to see if the list already contains the player id
+                exists = any(p.get_id() == player.get_id() for p in self.players_group_a)
+
+                if exists:
+                    # Get the player from the list based on the ID
+                    p = next((p for p in self.players_group_a if p.get_id() == player.get_id()), None)
+                    # Remove the player from the list
+                    self.players_group_a.remove(p)
+                    # Add the player to the list
+                    self.players_group_a.append(player)
+                else:
+
+                    self.players_group_a.append(player)
+            case "B":
+                exists = any(p.get_id() == player.get_id() for p in self.players_group_b)
+                
+                if exists:
+                    p = next((p for p in self.players_group_b if p.get_id() == player.get_id()), None)
+                    self.players_group_b.remove(p)
+                    self.players_group_b.append(player)
+                else:
+                    self.players_group_b.append(player)
+            case "Finals":
+
+                exists = any(p.get_id() == player.get_id() for p in self.players_group_finals)
+                if  exists:
+                    p = next((p for p in self.players_group_finals if p.get_id() == player.get_id()), None)
+                    self.players_group_finals.remove(p)
+                    self.players_group_finals.append(player)
+                else:
+                    self.players_group_finals.append(player)
+            case None:
+
+                exists = any(p.get_id() == player.get_id() for p in self.players_group_none)
+                if  exists:
+                    p = next((p for p in self.players_group_none if p.get_id() == player.get_id()), None)
+                    self.players_group_none.remove(p)
+                    self.players_group_none.append(player)
+                else:
+                    self.players_group_none.append(player)
+
+    def clear_group(self, group = None):
+        match(group):
+            case "A": 
+                self.players_group_a.clear()
+            case "B":
+                self.players_group_b.clear()
+            case "Finals":
+                self.players_group_finals.clear()
+            case None:
+                self.players_group_none.clear()
+
+    def sort_players_to_groups(self):
+        # Get the participants from challonge
+    
+        matches = self.c_api.get_matches(self.tournament.get_id())
+        highest_id = 0 # I think this is group A
+        lowest_id = 0 # And this is group B
+        # If there is group ID this usually means it's in the finals 
+        for match in matches:
+            if match.get_group_id() is not None:
+                if match.get_group_id() > highest_id:
+                    highest_id = match.get_group_id()
+                if match.get_group_id() < highest_id:
+                    lowest_id = match.get_group_id()
+
+    
+        for p in self.players:
+            is_finals = False
+            player_final = None
+            for m in matches:
+               if m.get_player1_id() == p.get_id() or m.get_player1_id() == p.get_group_id()[0] or m.get_player2_id() == p.get_id() or m.get_player2_id() == p.get_group_id()[0]:
+                    
+                    if m.get_group_id() is not None:
+                        if m.get_winner_id() == p.get_id() or m.get_winner_id() == p.get_group_id()[0]:
+                            p.updateScore(1, 0)
+                        elif m.get_loser_id() == p.get_id() or m.get_loser_id() == p.get_group_id()[0]:
+                            p.updateScore(0, 1)
+                    else:
+                        if not is_finals:                            
+                            is_finals = True
+                            # Create a new player object for the finals
+                            player_final = Player(p.get_name(), p.get_id(), p.get_group_id())
+                            player_final.updateScore(0, 0)
+                        
+                        if m.get_winner_id() == p.get_id() or m.get_winner_id() == p.get_group_id()[0]:
+                            player_final.updateScore(1, 0)
+                        elif m.get_loser_id() == p.get_id() or m.get_loser_id() == p.get_group_id()[0]:
+                            player_final.updateScore(0, 1)
+                            
+
+
+                    if len(self.players) <= 7:
+                        self.assign_to_group(p)
+                    elif m.get_group_id()== highest_id:
+                        self.assign_to_group(p, "A")
+                    elif m.get_group_id() == lowest_id:
+                        self.assign_to_group(p, "B")
+                    else:
+                        self.assign_to_group(player_final, "Finals")
+
+        print("Group A: " + str(len(self.players_group_a)))                 
+
     def execute_importDiag(self):
         # Create the dialog
         import_diag = QInputDialog()
@@ -222,8 +343,14 @@ class PlayersUI(QWidget):
                 self.import_url = self.format_url(create_tournament.t.get_url())
                 GetConfig.set_url(self.import_url)
                 self.clear_table()
-                self.populate_table                
-                self.sheets.create_sheet(self.tournament.get_related_sheet())
+                self.populate_table   
+                participants = self.c_api.get_participants(self.tournament.get_id())
+                if self.players_group_a is None or self.players_group_b is None or self.players_group_finals is None or self.players_group_none is None:
+                    self.sort_players_to_groups()
+                if len(participants) <= 7:
+                    self.sheets.create_sheet(self.tournament.get_related_sheet(), self.players_group_none)
+                else:
+                    self.sheets.create_sheet(self.tournament.get_related_sheet(), [self.players_group_a, self.players_group_b], ["A", "B"])
             
         except(Exception) as e:
             print("Error creating tournament" + str(e))
@@ -300,6 +427,20 @@ class PlayersUI(QWidget):
                 self.c_api.remove_participant(self.tournament.get_id(), p.get_id())
                 self.sheets.remove_player(self.tournament.get_related_sheet(), player_name)
                 
+                # look in the group lists and remove the player
+                for player in self.players_group_a:
+                    if player.get_name() == player_name:
+                        self.players_group_a.remove(player)
+                for player in self.players_group_b:
+                    if player.get_name() == player_name:
+                        self.players_group_b.remove(player)
+                for player in self.players_group_finals:
+                    if player.get_name() == player_name:
+                        self.players_group_finals.remove(player)
+                for player in self.players_group_none:
+                    if player.get_name() == player_name:
+                        self.players_group_none.remove(player)
+
                 self.tournament = self.c_api.get_tournament(self.import_url)
                 
                 self.update_table()
@@ -330,7 +471,6 @@ class PlayersUI(QWidget):
             player.updateScore(0, 0)
             print("Player ID: " + str(player.get_id()) + " Player Group ID: " + str(player.get_group_id()[0]))
             for m in matches:
-                
                 if m.get_player1_id() == player.get_id() or m.get_player1_id() == player.get_group_id()[0] or m.get_player2_id() == player.get_id() or m.get_player2_id() == player.get_group_id()[0]:
                     if m.get_state() == "complete":
                         print("Winner ID: " + str(m.get_winner_id()))
@@ -366,17 +506,27 @@ class PlayersUI(QWidget):
                 date = self.tournament.get_created_at().strftime("%d/%m/%Y")
                 
             sheet_name = self.tournament.get_name() + " - " + date
+
+            participants = self.c_api.get_participants(self.tournament.get_id())
             
             if not self.sheets.check_sheet_exists(sheet_name): 
-                if len(self.c_api.get_participants(self.tournament.get_id())) > 0:           
-                    self.sheets.create_sheet(sheet_name, self.format_players())
+                if len(participants) > 0:
+                    self.sort_players_to_groups()
+                    if len(participants) > 7:
+                        if len(self.players_group_finals) == 0:
+                            self.sheets.create_sheet(sheet_name, [self.players_group_a, self.players_group_b], ["A", "B"])
+                        else:
+                            self.sheets.create_sheet(sheet_name, [self.players_group_a, self.players_group_b, self.players_group_finals], ["A", "B", "Finals"])
+                    else:
+                        self.sheets.create_sheet(sheet_name, self.players_group_none)
                 else:
                     self.sheets.create_sheet_empty(sheet_name)
     
                 
 class CreateTournament(QDialog):
-    def __init__(self):
+    def __init__(self, sheets):
         super().__init__() 
+        self.sheets = sheets
         #self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         uic.loadUi('./src/GUI/new_tournament.ui', self)
         self.config = GetConfig.read_config()
@@ -414,9 +564,7 @@ class CreateTournament(QDialog):
                 date = self.t.get_created_at().strftime("%d/%m/%Y")
 
             sheet_name = self.t.get_name() + " - " + date
-        
-            sheets = BTMAppSheets(self.config['GOOGLE_SHEETS']['URL'])
-            sheets.create_sheet(sheet_name)
+            self.sheets.create_sheet(sheet_name)
         except (Exception) as e:
             print("Error creating tournament: " + str(e))
     

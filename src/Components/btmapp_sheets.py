@@ -8,6 +8,9 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.cloud import secretmanager
+
+from google_auth_oauthlib.flow import InstalledAppFlow
+
 from google.oauth2 import service_account
 
 class BTMAppSheets:
@@ -16,43 +19,13 @@ class BTMAppSheets:
     SHEET_ID = ""
     creds, project = google.auth.default(scopes=['https://www.googleapis.com/auth/drive'])
 
-    def __init__(self, sheet_id):
-
-        
-        self.creds = service_account.Credentials.from_service_account_file(
-        './src/key.json')
-
-        scoped_credentials = self.creds.with_scopes(
-        ['https://www.googleapis.com/auth/cloud-platform'])
-        
-        # Set the sheet id which is located in the google sheet url
+    def __init__(self, sheet_id, service):
         self.SHEET_ID = sheet_id
-
-        # if there is no valid credentials, then get new credentials
-        if not self.creds or not self.creds.valid:
-            if self.creds and self.creds.expired and self.creds.refresh_token:
-                self.creds.refresh(Request())
-            else:
-                client = secretmanager.SecretManagerServiceClient()
-                name = f"projects/{os.getenv('BTM_CLIENT_SECRET')}/secrets/{os.getenv('BTM_SECRET_ID')}/versions/latest"
-                result = client.access_secret_version(name=name)
-                response = result.payload.data.decode('UTF-8')
-                client_config = json.loads(response)    
-                flow = InstalledAppFlow.from_client_config(client_config, self.SCOPES)
-                self.creds = flow.run_local_server(port=0)
-            # Save the credentials for the next run
-            with open("token.json", "w") as token:
-                token.write(self.creds.to_json())
+        self.service = service
 
     def get_sheet_names(self):
         try:
-            try:
-                service = build("sheets", "v", credentials=self.creds)
-            except:
-                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
-                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
-        
-            sheet = service.spreadsheets()
+            sheet = self.service.spreadsheets()
             result = sheet.get(spreadsheetId=self.SHEET_ID).execute()
             sheets = result.get("sheets", [])
         
@@ -65,13 +38,7 @@ class BTMAppSheets:
 
     def get_headers(self, sheetname):
         try:
-            try:
-                service = build("sheets", "v4", credentials=self.creds)
-            except:
-                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
-                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
-        
-            sheet = service.spreadsheets()
+            sheet = self.service.spreadsheets()
             result = sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
             values = result.get("values", [])
 
@@ -85,13 +52,7 @@ class BTMAppSheets:
 
     def get_sheet(self, sheetname):  
         try:
-            try:
-                service = build("sheets", "v4", credentials=self.creds)
-            except:
-                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
-                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
-        
-            sheet = service.spreadsheets()
+            sheet = self.service.spreadsheets()
             result = sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
             values = result.get("values", [])
             
@@ -125,11 +86,6 @@ class BTMAppSheets:
     # Create a new sheet with the given name
     def create_sheet_empty(self, sheetname):
         try:
-            try:
-                service = build("sheets", "v4", credentials=self.creds)
-            except:
-                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
-                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
             body = {
                 "requests": [{
                     "addSheet": {
@@ -140,7 +96,7 @@ class BTMAppSheets:
                 }]
             }
 
-            result = service.spreadsheets().batchUpdate(spreadsheetId=self.SHEET_ID, body=body).execute()
+            result = self.service.spreadsheets().batchUpdate(spreadsheetId=self.SHEET_ID, body=body).execute()
             
             
         
@@ -151,23 +107,20 @@ class BTMAppSheets:
                                     'Column 3', 'Column 4', 'Column 5', 'Column 6',
                                     'Column 7', 'Column 8', 'Column 9']
             
+
+            
             values = [headers]
             body = {
                 "values": values
             }
 
-            result = service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="RAW", body=body).execute()
+            result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="RAW", body=body).execute()
         except HttpError as e:
             print(f"An error occurred: {e}")
     
     # Create a new sheet with the given name and existing players           
-    def create_sheet(self, sheetname, players):
+    def create_sheet(self, sheetname, players, groups = None): 
         try:
-            try:
-                service = build("sheets", "v4", credentials=self.creds)
-            except:
-                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
-                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
             body = {
                 "requests": [{
                     "addSheet": {
@@ -178,64 +131,166 @@ class BTMAppSheets:
                 }]
             }
 
-            result = service.spreadsheets().batchUpdate(spreadsheetId=self.SHEET_ID, body=body).execute()
+            result = self.service.spreadsheets().batchUpdate(spreadsheetId=self.SHEET_ID, body=body).execute()
             
-            
-        
-            # Update header row
+              # Update header row
             headers = ['Rank', 'Blader', 'Wins', 'Losses', 
                                     '1st', '2nd', '3rd', 'Points', 'Win%',
                                     'Rating', 'Region', 'Column 1', 'Column 2',
                                     'Column 3', 'Column 4', 'Column 5', 'Column 6',
-                                    'Column 7', 'Column 8', 'Column 9']
+                                    'Column 7', 'Column 8', 'Column 9']            
+
             
             values = [headers]
             body = {
                 "values": values
             }
-
-            result = service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="RAW", body=body).execute()
-
-            # Get the header row and and store the row number of the next empty row
-            next_row = len(self.get_sheet(sheetname)) + 1
             
-            # Update player data after header row and adjust formulas to be the correct row              
-            values = []
-            
-            for player in players:
+          
+            # if we have groups, add an additional row above the inital header saying Group A
+
+            if groups is not None:
+                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A2:T".format(sheetname), valueInputOption="RAW", body=body).execute()
+                group_row = ['Group A']
+                values = [group_row]
+                body = {
+                    "values": values
+                }
+                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="RAW", body=body).execute()
+        
+                # Start from A3
+                first_row = 3
+                next_row = first_row
+                values = []
+                group_a = players[0]
+                for player in group_a:
+                    rank_formula = '=RANK(J%s,J$%s:J$%s,0)' % (next_row, first_row, first_row + len(group_a))
+                    points_formula = '=SUM(C%s,(E%s*3),(F%s*2),(G%s*1))' % (next_row, next_row, next_row, next_row)
+                    win_percentage_formula = '=IFERROR(ROUND((C%s/(C%s+D%s)), 2), "")' % (next_row, next_row, next_row)
+                    raiting_formula = '=ROUND((H%s * 100) * I%s)' % (next_row, next_row)
+                    values.append([rank_formula, player.get_name(), player.get_wins(), player.get_losses(),
+                                player.get_first(), player.get_second(), player.get_third(), points_formula,
+                                win_percentage_formula, raiting_formula, player.get_region()])
+                    next_row += 1
                 
-                rank_formula = '=RANK(J%s,J$2:J$400,0)' % (next_row)
-                points_formula = '=SUM(C%s,(E%s*3),(F%s*2),(G%s*1))' % (next_row, next_row, next_row, next_row)
-                win_percentage_formula = '=IFERROR(ROUND((C%s/(C%s+D%s)), 2), "")' % (next_row, next_row, next_row)
-                raiting_formula = '=ROUND((H%s * 100) * I%s)' % (next_row, next_row)
+                body = {
+                    "values": values
+                }                    
+                self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T".format(sheetname, first_row), valueInputOption="USER_ENTERED", body=body).execute()
+
+                group_row = ['Group B']
+                values = [group_row]
+                body = {
+                    "values": values
+                }
+                next_row = next_row + 2
+                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T".format(sheetname, next_row), valueInputOption="RAW", body=body).execute()
+
+                values = [headers]
+                body = {
+                    "values": values
+                }
+
+                next_row = next_row + 1
+                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T".format(sheetname, next_row), valueInputOption="RAW", body=body).execute()
+
+                first_row = next_row + 1
+                next_row = first_row
+                group_b = players[1]
+                values = []
+                for player in group_b:
+                    rank_formula = '=RANK(J%s,J$%s:J$%s,0)' % (next_row, first_row, first_row + len(group_b))
+                    points_formula = '=SUM(C%s,(E%s*3),(F%s*2),(G%s*1))' % (next_row, next_row, next_row, next_row)
+                    win_percentage_formula = '=IFERROR(ROUND((C%s/(C%s+D%s)), 2), "")' % (next_row, next_row, next_row)
+                    raiting_formula = '=ROUND((H%s * 100) * I%s)' % (next_row, next_row)
                 
-                values.append([rank_formula, player.get_name(), player.get_wins(), player.get_losses(),
+                    values.append([rank_formula, player.get_name(), player.get_wins(), player.get_losses(),
                                 player.get_first(), player.get_second(), player.get_third(), points_formula,
                                 win_percentage_formula, raiting_formula, player.get_region()])
                 
-                next_row += 1
+                    next_row += 1
+                
+
+                body = {
+                    "values": values
+                }
+
+                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T".format(sheetname, first_row), valueInputOption="USER_ENTERED", body=body).execute()
+
+                group_row = ["Finals"]
+                values = [group_row]
+                body = {
+                    "values": values
+                }
+                next_row = next_row + 2
+                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T".format(sheetname, next_row), valueInputOption="RAW", body=body).execute()
+
+                values = [headers]
+                body = {
+                    "values": values
+                }
+
+                next_row = next_row + 1
+                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T".format(sheetname, next_row), valueInputOption="RAW", body=body).execute()
+
+
+                if len(players) > 2:
+                    first_row = next_row + 1
+                    next_row = first_row
+                    finals = players[2]
+                    if len(finals) > 0:
+                        values = []
+                        for player in finals:
+                            rank_formula = '=RANK(J%s,J$%s:J$%s,0)' % (next_row, first_row, first_row + len(finals))
+                            points_formula = '=SUM(C%s,(E%s*3),(F%s*2),(G%s*1))' % (next_row, next_row, next_row, next_row)
+                            win_percentage_formula = '=IFERROR(ROUND((C%s/(C%s+D%s)), 2), "")' % (next_row, next_row, next_row)
+                            raiting_formula = '=ROUND((H%s * 100) * I%s)' % (next_row, next_row)
+                        
+                            values.append([rank_formula, player.get_name(), player.get_wins(), player.get_losses(),
+                                        player.get_first(), player.get_second(), player.get_third(), points_formula,
+                                        win_percentage_formula, raiting_formula, player.get_region()])
+                        
+                            next_row += 1
+
+                        body = {
+                            "values": values
+                        }
+
+                        result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T".format(sheetname, first_row), valueInputOption="USER_ENTERED", body=body).execute()
+
+            else:  
+                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="RAW", body=body).execute()
+                # Update player data after header row and adjust formulas to be the correct row              
+                values = []
+                
+                for player in players:
+                    
+                    rank_formula = '=RANK(J%s,J$2:J$400,0)' % (next_row)
+                    points_formula = '=SUM(C%s,(E%s*3),(F%s*2),(G%s*1))' % (next_row, next_row, next_row, next_row)
+                    win_percentage_formula = '=IFERROR(ROUND((C%s/(C%s+D%s)), 2), "")' % (next_row, next_row, next_row)
+                    raiting_formula = '=ROUND((H%s * 100) * I%s)' % (next_row, next_row)
+                    
+                    values.append([rank_formula, player.get_name(), player.get_wins(), player.get_losses(),
+                                    player.get_first(), player.get_second(), player.get_third(), points_formula,
+                                    win_percentage_formula, raiting_formula, player.get_region()])
+                    
+                    next_row += 1
+                
+                
+                body = {
+                    "values": values
+                }
+    
+                
+                
+                
+                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A2:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
             
-            
-            body = {
-                "values": values
-            }
-   
-            
-            
-            
-            result = service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A2:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
-        
         except HttpError as e:
             print(f"An error occurred: {e}")
     
     def add_player(self, sheetname, player):
         try:
-            try:
-                service = build("sheets", "v4", credentials=self.creds)
-            except:
-                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
-                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
-        
             # Get the header row and and store the row number of the next empty row
             next_row = len(self.get_sheet(sheetname)) + 1
             
@@ -255,20 +310,14 @@ class BTMAppSheets:
                 "values": values
             }
             
-            result = service.spreadsheets().values().append(spreadsheetId=self.SHEET_ID, range="{}!A2:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
+            result = self.service.spreadsheets().values().append(spreadsheetId=self.SHEET_ID, range="{}!A2:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
         except HttpError as e:
             print(f"An error occurred: {e}")
     
     def remove_player(self, sheetname, player):
         try:
-            try:
-                service = build("sheets", "v4", credentials=self.creds)
-            except:
-                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
-                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
-            
             # Find the row number that contains the player
-            result = service.spreadsheets().values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
+            result = self.service.spreadsheets().values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
             values = result.get("values", [])
             
             player_row = None
@@ -301,21 +350,15 @@ class BTMAppSheets:
             }
         
             
-            result = service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
+            result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
             
             
         except HttpError as e:
             print(f"An error occurred")
         
-    def update_player(self, sheetname, winner, loser):
+    def update_player(self, sheetname, winner, loser, group = None):
         try:
-            try:
-                service = build("sheets", "v4", credentials=self.creds)
-            except:
-                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
-                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
-            
-            sheet = service.spreadsheets()
+            sheet = self.service.spreadsheets()
             result = sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
             values = result.get("values", [])
             
@@ -364,20 +407,14 @@ class BTMAppSheets:
                 "values": values
             }
             
-            result = service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
+            result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
             
         except HttpError as e:
             print(f"An error occurred: {e}")
     
     def undo_update_player(self, sheetname, winner, loser):
         try:
-            try:
-                service = build("sheets", "v4", credentials=self.creds)
-            except:
-                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
-                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
-            
-            sheet = service.spreadsheets()
+            sheet = self.service.spreadsheets()
             result = sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
             values = result.get("values", [])
             
@@ -429,20 +466,14 @@ class BTMAppSheets:
                 "values": values
             }
             
-            result = service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
+            result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
             
         except HttpError as e:
             print(f"An error occurred: {e}")
             
     def check_sheet_exists(self, sheetname):
         try:
-            try:
-                service = build("sheets", "v4", credentials=self.creds)
-            except:
-                DISCOVERY_SERVICE_URL = 'https://sheets.googleapis.com/$discovery/rest?version=v4'
-                service = build('sheets', 'v4', credentials=self.creds, discoveryServiceUrl=DISCOVERY_SERVICE_URL)
-        
-            sheet = service.spreadsheets()
+            sheet = self.service.spreadsheets()
             result = sheet.get(spreadsheetId=self.SHEET_ID).execute()
             sheets = result.get("sheets", [])
         

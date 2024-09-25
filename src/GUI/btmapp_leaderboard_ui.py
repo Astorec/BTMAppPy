@@ -5,9 +5,10 @@ from Components.btmapp_sheets import BTMAppSheets
 from Components.btmapp_get_config import GetConfig
 
 class LeaderboardUI(QWidget):
-    def __init__(self, parent): # Accept parent_widget reference
+    def __init__(self, parent, service): # Accept parent_widget reference
         super().__init__(parent)
         self.parent_widget = parent
+        self.service = service
 
     def InitUi(self):
                 # Get the config
@@ -22,7 +23,7 @@ class LeaderboardUI(QWidget):
                 GetConfig.write_config(self.config)
                 self.sheet_id = text
         
-        self.sheets = BTMAppSheets(self.sheet_id)
+        self.sheets = BTMAppSheets(self.sheet_id, self.service)
 
         self.sheet_list = self.parent_widget.findChild(QComboBox, "sheet_cb")
         self.sheet_list.addItems(self.sheets.get_sheet_names())

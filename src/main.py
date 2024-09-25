@@ -5,6 +5,7 @@ from GUI.btmapp_settings_ui import SettingsUI
 from GUI.btmapp_bracket_ui import BracketUI
 from GUI.btmapp_leaderboard_ui import LeaderboardUI
 from Components.btmapp_sheets import BTMAppSheets
+from Components.btmapp_gauth import GAuth
 from PyQt6 import uic
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QMainWindow,QVBoxLayout, QTableWidget, QPushButton, QTableWidgetItem, QCheckBox, QWidget, QHBoxLayout, QTabWidget
@@ -14,6 +15,9 @@ class BTMAppMain(QMainWindow):
 
     def __init__(self):        
         super().__init__()
+
+        self.service = GAuth('./src/key.json', ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']).get_service()
+
         uic.loadUi('./src/GUI/main.ui', self) 
         
         # Find the QTabWidgetz
@@ -29,7 +33,7 @@ class BTMAppMain(QMainWindow):
             return
         
         # Create the Players UI passing in the type qwidget checkin_tab
-        self.checkin_ui = PlayersUI(self.checkin_tab)
+        self.checkin_ui = PlayersUI(self.checkin_tab, self.service)
         self.checkin_ui.InitUi()
 
         self.bracket_tab = self.tab_widget.findChild(QWidget, 'bracket_tab')
@@ -37,14 +41,14 @@ class BTMAppMain(QMainWindow):
             print("Bracket tab not found")
             return
         
-        self.bracket_ui = BracketUI(self.bracket_tab)
+        self.bracket_ui = BracketUI(self.bracket_tab, self.service)
 
         self.leaderboard_tab = self.tab_widget.findChild(QWidget, 'leaderboard_tab')
         if self.leaderboard_tab is None:
             print("Leaderboard tab not found")
             return
         
-        self.leaderboard_ui = LeaderboardUI(self.leaderboard_tab)
+        self.leaderboard_ui = LeaderboardUI(self.leaderboard_tab, self.service)
 
         self.settings_tab = self.tab_widget.findChild(QWidget, 'settings_tab')
         if self.settings_tab is None:

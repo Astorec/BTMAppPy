@@ -28,7 +28,11 @@ class Player:
     def updateScore(self, wins, losses):
         self.__wins += wins
         self.__loses += losses
-        
+    
+    def resetScore(self):
+        self.__wins = 0
+        self.__loses = 0
+
     def addFirst(self):
         self.__first += 1
     
