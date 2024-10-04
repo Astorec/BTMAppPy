@@ -324,6 +324,7 @@ class PlayersUI(QWidget):
     def start_tournamnet(self):
         try:            
             id = self.tournament.get_id()
+            self.c_api.randomize_participants(id)
             self.c_api.start_tournament(id)
             
             # Update the tournament once it's opened to get the new state
@@ -335,7 +336,7 @@ class PlayersUI(QWidget):
     
     def show_create_tournament(self):
         try:            
-            create_tournament = CreateTournament()
+            create_tournament = CreateTournament(self.sheets)
             create_tournament.exec()
             
             # Check if the tournament was created
@@ -596,6 +597,7 @@ class AddNewPlayer(QDialog):
         super().__init__()
         uic.loadUi('./src/GUI/new_player.ui', self)
         self.tournament_id = tournament_id
+        print("Tournament ID: " + str(self.tournament_id))
         self.player_name = self.findChild(QTextEdit, "nameTxt")
         self.dialog_button = self.findChild(QDialogButtonBox, "buttonBox")
         

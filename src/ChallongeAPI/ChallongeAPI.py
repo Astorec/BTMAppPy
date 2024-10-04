@@ -10,14 +10,18 @@ class ChallongeAPI:
         
     def create_tournament(name, desc, t_type):
         params = {
-            "description": desc         
+            "description": desc  
         }
         
-        
+        # Extract tournament type from t_type
+        if t_type == "Round Robin (16 or Less players)":
+            t_type = "round robin"
+
         # remove spaces from name to create the url
         url = name.replace(" ", "")
         
         t = challonge.tournaments.create(name, url, str(t_type).lower(), **params)
+        
         
         return Tournament(t['url'], t['id'], t['name'], t['started_at'], t['created_at'])
         
@@ -74,6 +78,9 @@ class ChallongeAPI:
     
     def start_tournament(self, tournament_id):
         challonge.tournaments.start(tournament_id)
+
+    def randomize_participants(self, tournament_id):
+        challonge.participants.randomize(tournament_id)
         
     def finalize_tournament(self, tournament_id):
         challonge.tournaments.finalize(tournament_id)

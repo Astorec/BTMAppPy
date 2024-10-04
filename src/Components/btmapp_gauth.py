@@ -22,29 +22,18 @@ class GAuth:
         self.load_creds()
         
     def load_creds(self):
-        credentials_path =  "./src/credentials.json"
-        try:
-            self.creds = Credentials.from_authorized_user_file(credentials_path, self.scopes)
-            if not self.creds or not self.creds.valid:
-                if self.creds and self.creds.expired and self.creds.refresh_token:
-                    self.creds.refresh(Request())  
-        except (FileNotFoundError, ValueError):
-            print("Credentials file not found or invalid format - " + credentials_path)
-            pass  # File not found or invalid format, proceed with new credentials
+        if os.path.exists("./src/token.json"):
+            self.credentials = Credentials.from_authorized_user_file("./src/token.json", self.scopes)
+        if not self.credentials or not self.credentials.valid:
+            if self.credentials and self.credentials.expired and self.credentials.refresh_token:
+                self.credentials.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file("./src/credentials.json", self.scopes)
+                self.credentials = flow.run_local_server(port=0)
+            with open("./src/token.json", 'w') as credentials_file:
+                credentials_file.write(self.credentials.to_json())
 
-        client = secretmanager.SecretManagerServiceClient()
-       
-        name = f"projects/{os.getenv('BTM_CLIENT_SECRET')}/secrets/{os.getenv('BTM_SECRET_ID')}/versions/latest"
-        result = client.access_secret_version(name=name)
-        response = result.payload.data.decode('UTF-8')
-        client_config = json.loads(response)    
-        flow = InstalledAppFlow.from_client_config(client_config, self.scopes)
-        self.creds = flow.run_local_server(port=0)
-
-        with open(credentials_path, 'w+') as token:
-            token.write(self.creds.to_json())
-
-        self.service = build('sheets', 'v4', credentials=self.creds)
+        self.service = build('sheets', 'v4', credentials=self.credentials)
 
     def get_service(self):
         return self.service

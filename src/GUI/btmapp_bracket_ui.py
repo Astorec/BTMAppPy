@@ -130,17 +130,27 @@ class BracketUI(QWidget):
         column = 0
         row = 0
         round = 0
-        
+        nextRound = False
+
         for i in range(len(self.widgets)):
             # get the match from the widget
             match = self.widgets[i].match
-            if match.get_round() > round and group != "Finals":
-                round += 1
+            
+            if match.get_round() != round:
+                nextRound = True
+                round = match.get_round()
+                if column == 2 or column == 1:
+                    column = 0
+                    row += 2
                 self.round_label = QLabel("Round " + str(round))
                 self.round_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.bracket_grid.addWidget(self.round_label, row, column, 1, 2)
+                self.bracket_grid.addWidget(self.round_label, row, column, 1, 2)                
+                
+            if nextRound:
+                column = 0
                 row += 1
-            
+                nextRound = False
+
             self.bracket_grid.addWidget(self.widgets[i], row, column)
             
             # set cell to same size as widget
