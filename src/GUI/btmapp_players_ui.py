@@ -6,6 +6,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QVBoxLayout, QTableWidget, QLabel, QComboBox,QDialogButtonBox, QInputDialog,QTableWidgetItem, QCheckBox, QTextEdit, QWidget, QHBoxLayout, QPushButton, QDialog
 from PyQt6 import uic
 from Components.btmapp_gauth import GAuth
+import asyncio
 
 class PlayersUI(QWidget):
     
@@ -14,7 +15,7 @@ class PlayersUI(QWidget):
         self.parent_widget = parent
         self.service = service
         
-    def InitUi(self):     
+    async def InitUi(self):     
         # Get Config
         self.config = GetConfig.read_config()
         self.import_url = self.config['TOURNAMENT_DETAILS']['URL']
@@ -23,8 +24,8 @@ class PlayersUI(QWidget):
         if self.config['CHALLONGE']['USERNAME'] != "" or self.config['CHALLONGE']['API_KEY'] != "":
             self.c_api = ChallongeAPI(self.config['CHALLONGE']['USERNAME'], self.config['CHALLONGE']['API_KEY'])
             if self.import_url != "":
-                self.tournament = self.c_api.get_tournament(self.import_url)
-        
+                tournament_task = asyncio.create_task(self.c_api.get_tournament(self.import_url))
+                self.tournament = await tournament_task
   
             
         # Directly find the child widgets within self

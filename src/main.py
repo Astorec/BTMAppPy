@@ -8,8 +8,10 @@ from Components.btmapp_sheets import BTMAppSheets
 from Components.btmapp_gauth import GAuth
 from PyQt6 import uic
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QMainWindow,QVBoxLayout, QTableWidget, QPushButton, QTableWidgetItem, QCheckBox, QWidget, QHBoxLayout, QTabWidget
+from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QTableWidget, QPushButton, QTableWidgetItem, QCheckBox, QWidget, QHBoxLayout, QTabWidget
+from qasync import QEventLoop, asyncSlot
 import os
+import asyncio
 
 class BTMAppMain(QMainWindow):
 
@@ -20,7 +22,7 @@ class BTMAppMain(QMainWindow):
 
         uic.loadUi('./src/GUI/main.ui', self) 
         
-        # Find the QTabWidgetz
+        # Find the QTabWidget
         self.tab_widget = self.findChild(QTabWidget, 'tabWidget')
         if self.tab_widget is None:
             print("Tab Widget not found")
@@ -34,8 +36,7 @@ class BTMAppMain(QMainWindow):
         
         # Create the Players UI passing in the type qwidget checkin_tab
         self.checkin_ui = PlayersUI(self.checkin_tab, self.service)
-        self.checkin_ui.InitUi()
-
+        
         self.bracket_tab = self.tab_widget.findChild(QWidget, 'bracket_tab')
         if self.bracket_tab is None:
             print("Bracket tab not found")
@@ -60,20 +61,33 @@ class BTMAppMain(QMainWindow):
         # Connect the tab change event
         self.tab_widget.currentChanged.connect(self.on_tab_change)
         
-    def on_tab_change(self, index):
-        match index:
-            case 0:                       
-                print("Checkin Tab")
-            case 1:
-                self.bracket_ui.reset_bracket_ui()
-            case 2:
-                self.leaderboard_ui.InitUi()
-            case 3:
-                self.settings_ui.InitUi()
+    @asyncSlot()
+    async def on_tab_change(self, index):
+        try:
+            match index:
+                case 0:                       
+                    await self.checkin_ui.InitUi()
+                case 1:
+                    await self.bracket_ui.reset_bracket_ui()
+                case 2:
+                    await self.leaderboard_ui.InitUi()
+                case 3:
+                    await self.settings_ui.InitUi()
+        except Exception as e:
+            print(f"Error in on_tab_change: {e}")
     
-    
-if __name__ == '__main__':
+    async def initialize_ui(self):
+        await self.checkin_ui.InitUi()
+
+async def main():
     app = QApplication([])
+    loop = QEventLoop(app)
+    asyncio.set_event_loop(loop)
     window = BTMAppMain()
     window.show()
-    app.exec()
+    await window.initialize_ui()
+    with loop:
+        loop.run_forever()
+
+if __name__ == '__main__':
+    asyncio.run(main())

@@ -8,7 +8,7 @@ class ChallongeAPI:
     def __init__(self, username, api_key):
         challonge.set_credentials(username, api_key)
         
-    def create_tournament(name, desc, t_type):
+    async def create_tournament(name, desc, t_type):
         params = {
             "description": desc  
         }
@@ -20,13 +20,13 @@ class ChallongeAPI:
         # remove spaces from name to create the url
         url = name.replace(" ", "")
         
-        t = challonge.tournaments.create(name, url, str(t_type).lower(), **params)
+        t = await challonge.tournaments.create(name, url, str(t_type).lower(), **params)
         
         
         return Tournament(t['url'], t['id'], t['name'], t['started_at'], t['created_at'])
         
        
-    def get_tournament(self, url):        
+    async def get_tournament(self, url):        
         t =  challonge.tournaments.show(url)
         return Tournament(t['url'], t['id'], t['name'], t['state'], t['participants_count'], t['started_at'], t['created_at'], t['tournament_type'])
     
