@@ -37,7 +37,7 @@ class Loading(QDialog):
         
         # Create and add a QProgressBar
         self.progress_bar = QProgressBar()
-        self.progress_bar.setRange(0, 0)  # Indeterminate mode
+        self.progress_bar.setRange(0, 0) 
         layout.addWidget(self.progress_bar)
         
         self.setLayout(layout)

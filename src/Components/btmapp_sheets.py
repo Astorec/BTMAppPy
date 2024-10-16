@@ -1,5 +1,6 @@
 import os.path
 import json
+import asyncio
 import google.auth
 
 from google.auth.transport.requests import Request
@@ -8,6 +9,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.cloud import secretmanager
+from qasync import asyncSlot
 from GUI.loading import Loading
 
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -24,10 +26,12 @@ class BTMAppSheets:
         self.SHEET_ID = sheet_id
         self.service = service
 
+    @asyncSlot()
     async def get_sheet_names(self):
         try:
             sheet = self.service.spreadsheets()
-            result = sheet.get(spreadsheetId=self.SHEET_ID).execute()
+            request = sheet.get(spreadsheetId=self.SHEET_ID)
+            result = await asyncio.to_thread(request.execute)
             sheets = result.get("sheets", [])
         
             sheet_names = []
@@ -37,10 +41,12 @@ class BTMAppSheets:
         except HttpError as e:
             print(f"An error occurred: {e}") 
 
-    def get_headers(self, sheetname):
+    @asyncSlot()
+    async def get_headers(self, sheetname):
         try:
             sheet = self.service.spreadsheets()
-            result = sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
+            request = sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname))
+            result = await asyncio.to_thread(request.execute)
             values = result.get("values", [])
 
             if not values:
@@ -50,11 +56,13 @@ class BTMAppSheets:
                 return values[0]
         except HttpError as e:
             print(f"An error occurred: {e}")
-
-    def get_sheet(self, sheetname):  
+            
+    @asyncSlot()
+    async def get_sheet(self, sheetname):  
         try:
             sheet = self.service.spreadsheets()
-            result = sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
+            request = sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname))
+            result = await asyncio.to_thread(request.execute)
             values = result.get("values", [])
             
         
@@ -85,7 +93,8 @@ class BTMAppSheets:
             print(f"An error occurred: {e}")
     
     # Create a new sheet with the given name
-    def create_sheet_empty(self, sheetname):
+    @asyncSlot()
+    async def create_sheet_empty(self, sheetname):
         try:
             body = {
                 "requests": [{
@@ -97,7 +106,7 @@ class BTMAppSheets:
                 }]
             }
 
-            result = self.service.spreadsheets().batchUpdate(spreadsheetId=self.SHEET_ID, body=body).execute()
+            result = await asyncio.to_thread(self.service.spreadsheets().batchUpdate(spreadsheetId=self.SHEET_ID, body=body).execute)
             
             
         
@@ -115,12 +124,13 @@ class BTMAppSheets:
                 "values": values
             }
 
-            result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="RAW", body=body).execute()
+            result = await asyncio.to_thread(self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="RAW", body=body).execute)
         except HttpError as e:
             print(f"An error occurred: {e}")
     
     # Create a new sheet with the given name and existing players           
-    def create_sheet(self, sheetname, players, groups = None): 
+    @asyncSlot()
+    async def create_sheet(self, sheetname, players, groups = None): 
         try:
             body = {
                 "requests": [{
@@ -132,7 +142,7 @@ class BTMAppSheets:
                 }]
             }
 
-            result = self.service.spreadsheets().batchUpdate(spreadsheetId=self.SHEET_ID, body=body).execute()
+            result = await asyncio.to_thread(self.service.spreadsheets().batchUpdate(spreadsheetId=self.SHEET_ID, body=body).execute)
             
               # Update header row
             headers = ['Rank', 'Blader', 'Wins', 'Losses', 
@@ -151,13 +161,17 @@ class BTMAppSheets:
             # if we have groups, add an additional row above the inital header saying Group A
 
             if groups is not None:
-                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A2:T".format(sheetname), valueInputOption="RAW", body=body).execute()
+                result = await asyncio.to_thread(self.service.spreadsheets().values()
+                                                 .update(spreadsheetId=self.SHEET_ID, range="{}!A2:T"
+                                                         .format(sheetname), valueInputOption="RAW", body=body).execute)
                 group_row = ['Group A']
                 values = [group_row]
                 body = {
                     "values": values
                 }
-                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="RAW", body=body).execute()
+                result = await asyncio.to_thread(self.service.spreadsheets().values()
+                                                 .update(spreadsheetId=self.SHEET_ID, range="{}!A1:T"
+                                                         .format(sheetname), valueInputOption="RAW", body=body).execute)
         
                 # Start from A3
                 first_row = 3
@@ -177,7 +191,10 @@ class BTMAppSheets:
                 body = {
                     "values": values
                 }                    
-                self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T".format(sheetname, first_row), valueInputOption="USER_ENTERED", body=body).execute()
+                await asyncio.to_thread(self.service.spreadsheets().values()
+                                        .update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T"
+                                                .format(sheetname, first_row), valueInputOption="USER_ENTERED", body=body)
+                                        .execute)
 
                 group_row = ['Group B']
                 values = [group_row]
@@ -185,7 +202,10 @@ class BTMAppSheets:
                     "values": values
                 }
                 next_row = next_row + 2
-                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T".format(sheetname, next_row), valueInputOption="RAW", body=body).execute()
+                result = await asyncio.to_thread(self.service.spreadsheets().values()
+                                                 .update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T"
+                                                         .format(sheetname, next_row), valueInputOption="RAW", body=body)
+                                                 .execute)
 
                 values = [headers]
                 body = {
@@ -193,7 +213,10 @@ class BTMAppSheets:
                 }
 
                 next_row = next_row + 1
-                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T".format(sheetname, next_row), valueInputOption="RAW", body=body).execute()
+                result = await asyncio.to_thread(self.service.spreadsheets().values()
+                                                 .update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T"
+                                                         .format(sheetname, next_row), valueInputOption="RAW", body=body)
+                                                 .execute)
 
                 first_row = next_row + 1
                 next_row = first_row
@@ -216,7 +239,11 @@ class BTMAppSheets:
                     "values": values
                 }
 
-                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T".format(sheetname, first_row), valueInputOption="USER_ENTERED", body=body).execute()
+                result = await asyncio.to_thread(self.service.spreadsheets().values()
+                                                 .update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T"
+                                                         .format(sheetname, first_row), valueInputOption="USER_ENTERED"
+                                                         , body=body)
+                                                 .execute)
 
                 group_row = ["Finals"]
                 values = [group_row]
@@ -224,7 +251,10 @@ class BTMAppSheets:
                     "values": values
                 }
                 next_row = next_row + 2
-                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T".format(sheetname, next_row), valueInputOption="RAW", body=body).execute()
+                result = await asyncio.to_thread(self.service.spreadsheets().values()
+                                                 .update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T"
+                                                         .format(sheetname, next_row), valueInputOption="RAW"
+                                                         , body=body).execute)
 
                 values = [headers]
                 body = {
@@ -232,7 +262,11 @@ class BTMAppSheets:
                 }
 
                 next_row = next_row + 1
-                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T".format(sheetname, next_row), valueInputOption="RAW", body=body).execute()
+                result = await asyncio.to_thread(self.service.spreadsheets().values()
+                                                 .update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T"
+                                                         .format(sheetname, next_row), valueInputOption="RAW"
+                                                         , body=body)
+                                                 .execute)
 
 
                 if len(players) > 2:
@@ -257,10 +291,18 @@ class BTMAppSheets:
                             "values": values
                         }
 
-                        result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A{}:T".format(sheetname, first_row), valueInputOption="USER_ENTERED", body=body).execute()
+                        result = await asyncio.to_thread(self.service.spreadsheets()
+                                                         .values().update(spreadsheetId=self.SHEET_ID
+                                                                          , range="{}!A{}:T".format(sheetname, first_row)
+                                                                          , valueInputOption="USER_ENTERED", body=body)
+                                                         .execute)
 
             else:  
-                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="RAW", body=body).execute()
+                result = await asyncio.to_thread(self.service.spreadsheets().values()
+                                                 .update(spreadsheetId=self.SHEET_ID, range="{}!A1:T"
+                                                         .format(sheetname), valueInputOption="RAW"
+                                                         , body=body)
+                                                 .execute)
                 # Update player data after header row and adjust formulas to be the correct row              
                 values = []
                 
@@ -285,12 +327,17 @@ class BTMAppSheets:
                 
                 
                 
-                result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A2:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
+                result = await asyncio.to_thread(self.service.spreadsheets().values()
+                                                 .update(spreadsheetId=self.SHEET_ID, range="{}!A2:T"
+                                                         .format(sheetname), valueInputOption="USER_ENTERED"
+                                                         , body=body)
+                                                 .execute)
             
         except HttpError as e:
             print(f"An error occurred: {e}")
     
-    def add_player(self, sheetname, player):
+    @asyncSlot()
+    async def add_player(self, sheetname, player):
         try:
             # Get the header row and and store the row number of the next empty row
             next_row = len(self.get_sheet(sheetname)) + 1
@@ -311,14 +358,21 @@ class BTMAppSheets:
                 "values": values
             }
             
-            result = self.service.spreadsheets().values().append(spreadsheetId=self.SHEET_ID, range="{}!A2:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
+            result = await asyncio.to_thread(self.service.spreadsheets().values()
+                                             .append(spreadsheetId=self.SHEET_ID, range="{}!A2:T"
+                                                     .format(sheetname), valueInputOption="USER_ENTERED"
+                                                     , body=body)
+                                             .execute)
         except HttpError as e:
             print(f"An error occurred: {e}")
     
-    def remove_player(self, sheetname, player):
+    @asyncSlot()
+    async def remove_player(self, sheetname, player):
         try:
             # Find the row number that contains the player
-            result = self.service.spreadsheets().values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
+            result = await asyncio.to_thread(self.service.spreadsheets().values()
+                                             .get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname))
+                                             .execute)
             values = result.get("values", [])
             
             player_row = None
@@ -351,16 +405,23 @@ class BTMAppSheets:
             }
         
             
-            result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
+            result = await asyncio.to_thread(self.service.spreadsheets().values()
+                                             .update(spreadsheetId=self.SHEET_ID, range="{}!A1:T"
+                                                     .format(sheetname), valueInputOption="USER_ENTERED"
+                                                     , body=body)
+                                             .execute)
             
             
         except HttpError as e:
             print(f"An error occurred")
         
-    def update_player(self, sheetname, winner, loser, group = None):
+    @asyncSlot()
+    async def update_player(self, sheetname, winner, loser, group = None):
         try:
             sheet = self.service.spreadsheets()
-            result = sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
+            result = await asyncio.to_thread(sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T"
+                                                                .format(sheetname))
+                                             .execute)
             values = result.get("values", [])
             
             # Get the row number that contains winner name and loser name
@@ -408,15 +469,22 @@ class BTMAppSheets:
                 "values": values
             }
             
-            result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
+            result = await asyncio.to_thread(self.service.spreadsheets().values()
+                                             .update(spreadsheetId=self.SHEET_ID, range="{}!A1:T"
+                                                     .format(sheetname), valueInputOption="USER_ENTERED"
+                                                     , body=body)
+                                             .execute)
             
         except HttpError as e:
             print(f"An error occurred: {e}")
     
-    def undo_update_player(self, sheetname, winner, loser):
+    @asyncSlot()
+    async def undo_update_player(self, sheetname, winner, loser):
         try:
             sheet = self.service.spreadsheets()
-            result = sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)).execute()
+            result = await asyncio.to_thread(sheet.values().get(spreadsheetId=self.SHEET_ID, range="{}!A1:T"
+                                                                .format(sheetname))
+                                             .execute)
             values = result.get("values", [])
             
             # Get the row number that contains winner name and loser name
@@ -467,15 +535,19 @@ class BTMAppSheets:
                 "values": values
             }
             
-            result = self.service.spreadsheets().values().update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname), valueInputOption="USER_ENTERED", body=body).execute()
+            result = await asyncio.to_thread(self.service.spreadsheets().values()
+                                             .update(spreadsheetId=self.SHEET_ID, range="{}!A1:T".format(sheetname)
+                                                     , valueInputOption="USER_ENTERED", body=body)
+                                             .execute)
             
         except HttpError as e:
             print(f"An error occurred: {e}")
-            
-    def check_sheet_exists(self, sheetname):
+          
+    @asyncSlot()
+    async def check_sheet_exists(self, sheetname):
         try:
             sheet = self.service.spreadsheets()
-            result = sheet.get(spreadsheetId=self.SHEET_ID).execute()
+            result = await asyncio.to_thread(sheet.get(spreadsheetId=self.SHEET_ID).execute)
             sheets = result.get("sheets", [])
         
             for sheet in sheets:

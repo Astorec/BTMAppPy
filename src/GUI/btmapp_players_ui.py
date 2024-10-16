@@ -125,7 +125,7 @@ class PlayersUI(QWidget):
             self.c_api = ChallongeAPI(self.config['CHALLONGE']['USERNAME'], self.config['CHALLONGE']['API_KEY'])
 
         try:
-               
+            self.tournament = await self.c_api.get_tournament(self.import_url)   
             participants = await self.c_api.get_participants(self.tournament.get_id())
             
             self.player_table.setRowCount(len(participants))
