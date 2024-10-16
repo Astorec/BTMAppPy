@@ -8,6 +8,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.cloud import secretmanager
+from GUI.loading import Loading
 
 from google_auth_oauthlib.flow import InstalledAppFlow
 
@@ -23,7 +24,7 @@ class BTMAppSheets:
         self.SHEET_ID = sheet_id
         self.service = service
 
-    def get_sheet_names(self):
+    async def get_sheet_names(self):
         try:
             sheet = self.service.spreadsheets()
             result = sheet.get(spreadsheetId=self.SHEET_ID).execute()

@@ -61,7 +61,7 @@ class BTMAppMain(QMainWindow):
         # Connect the tab change event
         self.tab_widget.currentChanged.connect(self.on_tab_change)
         
-    @asyncSlot()
+    @asyncSlot(int)
     async def on_tab_change(self, index):
         try:
             match index:
@@ -83,9 +83,12 @@ async def main():
     app = QApplication([])
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
+    
     window = BTMAppMain()
     window.show()
+    
     await window.initialize_ui()
+    
     with loop:
         loop.run_forever()
 

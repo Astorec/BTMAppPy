@@ -3,6 +3,7 @@ from Classes.match import Match
 from Classes.player import Player
 from Classes.tournament import Tournament
 from Classes.participant import Participant
+import asyncio
 
 class ChallongeAPI:
     def __init__(self, username, api_key):
@@ -27,13 +28,13 @@ class ChallongeAPI:
         
        
     async def get_tournament(self, url):        
-        t =  challonge.tournaments.show(url)
+        t = await asyncio.to_thread(challonge.tournaments.show, url)
         return Tournament(t['url'], t['id'], t['name'], t['state'], t['participants_count'], t['started_at'], t['created_at'], t['tournament_type'])
     
 
     
-    def get_matches(self, tournament_id):
-        m = challonge.matches.index(tournament_id)
+    async def get_matches(self, tournament_id):
+        m = await asyncio.to_thread(challonge.matches.index, tournament_id)
         l = []
         
         for match in m:
@@ -54,8 +55,8 @@ class ChallongeAPI:
     
     def undo_match(self, tournament_id, match_id):
         challonge.matches.reopen(tournament_id, match_id)
-    def get_participants(self, tournament_id):
-        p = challonge.participants.index(tournament_id)
+    async def get_participants(self, tournament_id):
+        p = await asyncio.to_thread(challonge.participants.index, tournament_id)
         l = []
         for participant in p:
             l.append(Participant(participant['checked_in_at'], participant['group_id'], participant['group_player_ids'],
