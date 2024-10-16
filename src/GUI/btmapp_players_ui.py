@@ -6,6 +6,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QVBoxLayout, QTableWidget, QLabel, QComboBox,QDialogButtonBox, QInputDialog,QTableWidgetItem, QCheckBox, QTextEdit, QWidget, QHBoxLayout, QPushButton, QDialog
 from PyQt6 import uic
 from Components.btmapp_gauth import GAuth
+import re
 
 class PlayersUI(QWidget):
     
@@ -136,7 +137,7 @@ class PlayersUI(QWidget):
                                 item = QTableWidgetItem(participants[i].get_checked_in_at())
                                 self.player_table.setItem(i, j, item)
 
-            self.update_ui()
+                self.update_ui()
             
             if self.config['GOOGLE_SHEETS']['URL'] != "":
                 self.sheets = BTMAppSheets(self.config['GOOGLE_SHEETS']['URL'], self.service)
@@ -450,10 +451,20 @@ class PlayersUI(QWidget):
                 return
     
     def format_url(self, url):
-        # Regex to get code from URL. Example: https://challonge.com/12345678
-        # Returns 12345678
-        print(url.split('/')[-1])
-        return url.split('/')[-1]
+        pattern = r"(?:https?://)?([^.]+)\.(.*?)/(.+)"
+        match = re.match(pattern, url)
+        subdomain = ""
+        code = ""
+        # Check if there's a match
+        if match:
+            subdomain, _, code = match.groups()
+            if subdomain:
+               return subdomain + "-" + code
+            else:
+                return code
+        else:
+            print("URL format not recognized")
+            
     
     def clear_table(self):
         self.player_table.clear()
