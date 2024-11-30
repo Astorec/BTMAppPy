@@ -1,15 +1,12 @@
 from ChallongeAPI.ChallongeAPI import ChallongeAPI
 from Components.btmapp_get_config import GetConfig
 from Components.btmapp_sheets import BTMAppSheets
-from GUI.loading import Loading
 from Classes.player import Player
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QVBoxLayout, QTableWidget, QLabel, QComboBox,QDialogButtonBox, QInputDialog,QTableWidgetItem, QCheckBox, QTextEdit, QWidget, QHBoxLayout, QPushButton, QDialog
 from PyQt6 import uic
 from Components.btmapp_gauth import GAuth
 import re
-import asyncio
-from qasync import asyncSlot
 
 class PlayersUI(QWidget):
     
@@ -18,7 +15,7 @@ class PlayersUI(QWidget):
         self.parent_widget = parent
         self.service = service
         
-    async def InitUi(self):     
+    def InitUi(self):     
         # Get Config
         self.config = GetConfig.read_config()
         self.import_url = self.config['TOURNAMENT_DETAILS']['URL']
@@ -27,11 +24,8 @@ class PlayersUI(QWidget):
         if self.config['CHALLONGE']['USERNAME'] != "" or self.config['CHALLONGE']['API_KEY'] != "":
             self.c_api = ChallongeAPI(self.config['CHALLONGE']['USERNAME'], self.config['CHALLONGE']['API_KEY'])
             if self.import_url != "":
-                tournament_task = asyncio.create_task(self.c_api.get_tournament(self.import_url))
-                self.tournament = await tournament_task
-                
-                # Ensure the tournament is not None
-                print("Tournament: " + self.tournament.get_name() + " ID: " + str(self.tournament.get_id()))
+                self.tournament = self.c_api.get_tournament(self.import_url)
+        
   
             
         # Directly find the child widgets within self
@@ -61,8 +55,7 @@ class PlayersUI(QWidget):
         
         if self.tournament is not None:
             # Populate the table
-            populate_task = asyncio.create_task(self.populate_table())
-            await populate_task
+            self.populate_table()
             
         # Finally connect the button events
         self.import_button.clicked.connect(self.execute_importDiag)
@@ -71,52 +64,35 @@ class PlayersUI(QWidget):
         self.add_player.clicked.connect(self.add_new_player)
         self.remove_player_button.clicked.connect(self.remove_player)
         self.start_button.clicked.connect(self.start_tournamnet)
+        
         self.player_table.itemSelectionChanged.connect(self.update_ui)
         
-    @asyncSlot()
-    async def update_ui(self, loading = None):
-        loading_diag = None
-        is_own_diag = False
-        if loading is not None:
-            loading_diag = Loading(self)
-        else:
-            loading_diag = Loading(self)
-            loading_diag.show()
-            is_own_diag = True
-            
-        try:
-            loading_diag.update_label("Refreshing UI...")
-            if self.tournament is not None:
-                self.tournament  = await self.c_api.get_tournament(self.import_url)
-                self.status_label.setText("Tournament Status: " + self.tournament.get_state())
-                self.player_count.setText("Player Count: " + str(self.tournament.get_participants_count()))
-                self.type_label.setText("Tournament Type: " + self.tournament.get_tournament_type())
+    
+    def update_ui(self):
+        if self.tournament is not None:
+            self.tournament = self.c_api.get_tournament(self.import_url)
+            self.status_label.setText("Tournament Status: " + self.tournament.get_state())
+            self.player_count.setText("Player Count: " + str(self.tournament.get_participants_count()))
+            self.type_label.setText("Tournament Type: " + self.tournament.get_tournament_type())
 
-                
-                if self.tournament.get_state() == "pending":
-                    self.start_button.setEnabled(True)
-                    self.add_player.setEnabled(True)                
-                else:
-                    self.start_button.setEnabled(False)
-                    self.add_player.setEnabled(False)
-                    
-            # If player is selected enable the remove button
-            if self.player_table.currentRow() != -1:
-                self.remove_player_button.setEnabled(True)
-            else:
-                self.remove_player_button.setEnabled(False)
             
-            if self.import_url != "":
-                self.current_url.setText("Current URL: https://challonge.com/" + self.import_url)
-        except Exception as e:
-            print(f"Error updating UI: {e}")
-        finally:
-            if is_own_diag:
-                loading_diag.close()
+            if self.tournament.get_state() == "pending":
+                self.start_button.setEnabled(True)
+                self.add_player.setEnabled(True)                
+            else:
+                self.start_button.setEnabled(False)
+                self.add_player.setEnabled(False)
+                
+        # If player is selected enable the remove button
+        if self.player_table.currentRow() != -1:
+            self.remove_player_button.setEnabled(True)
+        else:
+            self.remove_player_button.setEnabled(False)
+        
+        if self.import_url != "":
+            self.current_url.setText("Current URL: https://challonge.com/" + self.import_url)
        
-    async def populate_table(self):
-        loading_dialog = Loading(self)
-        loading_dialog.show()
+    def populate_table(self):
         # Get Config
         self.config = GetConfig.read_config()
         
@@ -125,15 +101,19 @@ class PlayersUI(QWidget):
             self.c_api = ChallongeAPI(self.config['CHALLONGE']['USERNAME'], self.config['CHALLONGE']['API_KEY'])
 
         try:
-            self.tournament = await self.c_api.get_tournament(self.import_url)   
-            participants = await self.c_api.get_participants(self.tournament.get_id())
+            # Get the tournament
+            # Check to see if the URL has changed
+            if self.tournament.get_url() != self.import_url:  
+                self.tournament = self.c_api.get_tournament(self.import_url)
+                
+            participants = self.c_api.get_participants(self.tournament.get_id())
             
             self.player_table.setRowCount(len(participants))
             self.player_table.setColumnCount(4)
 
             # Set the headers
             self.player_table.setHorizontalHeaderLabels(["Player", "Region", "Checked in At", "Checked In"])
-            loading_dialog.update_label("Populating Table...")
+            
             for i in range(0, len(participants)):
                 for j in range(0, 2):
                     match j:
@@ -156,31 +136,25 @@ class PlayersUI(QWidget):
                             if participants[i].get_checked_in():
                                 item = QTableWidgetItem(participants[i].get_checked_in_at())
                                 self.player_table.setItem(i, j, item)
-                await self.update_ui(loading = loading_dialog)
+
+                self.update_ui()
             
-            loading_dialog.update_label("Checking for Google Sheets...")
             if self.config['GOOGLE_SHEETS']['URL'] != "":
                 self.sheets = BTMAppSheets(self.config['GOOGLE_SHEETS']['URL'], self.service)
         except (Exception) as e:
             print("Error getting tournament - " + str(e))
-        finally:
-            loading_dialog.close()
     
-    async def update_table(self):
-        loading_dialog = Loading(self)
-        loading_dialog.show()
+    def update_table(self):
         # Get Config
         self.config = GetConfig.read_config()
         
         self.import_url = self.config['TOURNAMENT_DETAILS']['URL']
         if self.config['CHALLONGE']['USERNAME'] != "" or self.config['CHALLONGE']['API_KEY'] != "":
             try:
-                loading_dialog.update_label("Updating Table...")
-                participants = await self.c_api.get_participants(self.tournament.get_id())                
+                participants = self.c_api.get_participants(self.tournament.get_id())                
                 
                 # Check for new participants
                 if len(participants) > self.player_table.rowCount():
-                    loading_dialog.update_label("Adding New Players..")
                     self.player_table.setRowCount(len(participants))
                     for i in range(0, len(participants)):
                         for j in range(0, 2):
@@ -203,7 +177,6 @@ class PlayersUI(QWidget):
                                         
                 # Check to see if a player has been removed
                 if len(participants) < self.player_table.rowCount():
-                    loading_dialog.update_label("Removing Players..")
                     self.player_table.setRowCount(len(participants))
                     for i in range(0, len(participants)):
                         for j in range(0, 2):
@@ -223,11 +196,9 @@ class PlayersUI(QWidget):
                                     if participants[i].get_checked_in():
                                         item = QTableWidgetItem(participants[i].get_checked_in_at())
                                         self.player_table.setItem(i, j, item)
-                self.update_ui(loading=loading_dialog)
+                self.update_ui()
             except:
                 print("Error getting tournament")
-            finally:
-                loading_dialog.close()
 
     def assign_to_group(self, player, group = None):
         match(group):
@@ -335,7 +306,7 @@ class PlayersUI(QWidget):
 
         print("Group A: " + str(len(self.players_group_a)))                 
 
-    async def execute_importDiag(self):
+    def execute_importDiag(self):
         # Create the dialog
         import_diag = QInputDialog()
         import_diag.setLabelText("Enter the Challonge URL")
@@ -348,14 +319,11 @@ class PlayersUI(QWidget):
             self.import_url = self.format_url(import_diag.textValue())
             GetConfig.set_url(self.import_url)
             self.clear_table()
-            populate_task = asyncio.create_task(self.populate_table())
-            await populate_task
+            self.populate_table()
             self.check_for_sheet()
-      
+            
     def start_tournamnet(self):
-        loading_diag = Loading(self)
-        try: 
-            loading_diag.update_label("Starting Tournament...")         
+        try:            
             id = self.tournament.get_id()
             self.c_api.randomize_participants(id)
             self.c_api.start_tournament(id)
@@ -363,26 +331,11 @@ class PlayersUI(QWidget):
             # Update the tournament once it's opened to get the new state
             self.tournament = self.c_api.get_tournament(self.import_url)
             
-            self.update_ui(loading=loading_diag)
+            self.update_ui()
         except (Exception) as e:
             print("Error starting tournament: " + str(e))
-        finally:
-            loading_diag.close()
-            
-            # Dialog to show the tournament has started
-            dialog = QDialog()
-            dialog.setWindowTitle("Tournament Started")
-            dialog.setFixedSize(300, 100)
-            dialog.setModal(True)
-            dialog.setLayout(QVBoxLayout())
-            dialog.layout().addWidget(QLabel("Tournament has started"))
-            dialog_button = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
-            dialog.layout().addWidget(dialog_button)
-            dialog_button.accepted.connect(dialog.accept)
-            dialog.exec()
-            
     
-    async def show_create_tournament(self):
+    def show_create_tournament(self):
         try:            
             create_tournament = CreateTournament(self.sheets)
             create_tournament.exec()
@@ -393,7 +346,7 @@ class PlayersUI(QWidget):
                 GetConfig.set_url(self.import_url)
                 self.clear_table()
                 self.populate_table   
-                participants = await self.c_api.get_participants(self.tournament.get_id())
+                participants = self.c_api.get_participants(self.tournament.get_id())
                 if self.players_group_a is None or self.players_group_b is None or self.players_group_finals is None or self.players_group_none is None:
                     self.sort_players_to_groups()
                 if len(participants) <= 7:
@@ -404,9 +357,7 @@ class PlayersUI(QWidget):
         except(Exception) as e:
             print("Error creating tournament" + str(e))
 
-
-    @asyncSlot()
-    async def show_load_previous(self):
+    def show_load_previous(self):
         try:
             load_previous = LoadPrevious()
             load_previous.exec()
@@ -415,21 +366,20 @@ class PlayersUI(QWidget):
                 self.import_url = load_previous.url
                 GetConfig.set_url(self.import_url)
                 self.clear_table()
-                await self.populate_table()
+                self.populate_table()
         except(Exception) as e:
             print("Error loading previous tournament" + str(e))        
     
-    async def create_tournament(self):
+    def create_tournament(self):
         t = ChallongeAPI.create_tournament(self.name, self.desc, self.t_type)
 
         
         self.import_url = self.format_url(t.get_url())
         GetConfig.set_url(self.import_url)
         self.clear_table()
-        populate_task = asyncio.create_task(self.populate_table())
-        await populate_task
+        self.populate_table()
     
-    async def add_new_player(self):
+    def add_new_player(self):
         try:
             # Open new player dialog
             add_player = AddNewPlayer(self.tournament.get_id())
@@ -454,7 +404,7 @@ class PlayersUI(QWidget):
                 return
             fromated_player = self.format_player(p)
             self.sheets.add_player(self.tournament.get_related_sheet(), fromated_player)
-            await self.update_table()    
+            self.update_table()    
                
             # Check to see if we need to update the Tournament Type
             self.c_api.update_format(self.tournament.get_id(), self.tournament.get_participants_count())
@@ -464,14 +414,14 @@ class PlayersUI(QWidget):
         except (Exception) as e:
             print("Error adding new player: " + str(e))
     
-    async def remove_player(self):
+    def remove_player(self):
         # Get the selected row
         row = self.player_table.currentRow()
         # Get the player name
         player_name = self.player_table.item(row, 0).text()
         
         # Get the participants
-        self.participants = await self.c_api.get_participants(self.tournament.get_id())
+        self.participants = self.c_api.get_participants(self.tournament.get_id())
         
         # Find the player
         for p in self.participants:
@@ -495,7 +445,7 @@ class PlayersUI(QWidget):
 
                 self.tournament = self.c_api.get_tournament(self.import_url)
                 
-                await self.update_table()
+                self.update_table()
                 self.c_api.update_format(self.tournament.get_id(), self.tournament.get_participants_count())
                 self.update_ui()
                 return
@@ -521,9 +471,9 @@ class PlayersUI(QWidget):
         self.player_table.setRowCount(0)
         self.player_table.setColumnCount(0)
     
-    async def format_players(self):
+    def format_players(self):
         # get the participants
-        participants = await self.c_api.get_participants(self.tournament.get_id())
+        participants = self.c_api.get_participants(self.tournament.get_id())
         
         # Get matches
         matches = self.c_api.get_matches(self.tournament.get_id())
@@ -557,7 +507,7 @@ class PlayersUI(QWidget):
         player.updateScore(0, 0)
         return player
         
-    async def check_for_sheet(self):
+    def check_for_sheet(self):
         
         if self.sheets is not None:
             # Check to see if the tournament has a sheet associated with it
@@ -569,7 +519,7 @@ class PlayersUI(QWidget):
                 
             sheet_name = self.tournament.get_name() + " - " + date
 
-            participants = await self.c_api.get_participants(self.tournament.get_id())
+            participants = self.c_api.get_participants(self.tournament.get_id())
             
             if not self.sheets.check_sheet_exists(sheet_name): 
                 if len(participants) > 0:

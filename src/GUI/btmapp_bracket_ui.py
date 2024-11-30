@@ -1,4 +1,3 @@
-from qasync import asyncSlot
 from ChallongeAPI.ChallongeAPI import ChallongeAPI
 from Components.btmapp_get_config import GetConfig
 from Components.btmapp_sheets import BTMAppSheets
@@ -7,14 +6,13 @@ from Classes.participant import Participant
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QTabWidget, QScrollArea, QFrame, QGroupBox, QSizePolicy, QSpinBox, QGridLayout, QVBoxLayout, QLabel, QComboBox, QDialogButtonBox, QInputDialog, QTableWidgetItem, QCheckBox, QTextEdit, QWidget, QHBoxLayout, QPushButton, QDialog
 from PyQt6 import uic, sip
-import asyncio
 
 class BracketUI(QWidget):
     
     def __init__(self, parent, service): # Accept parent_widget reference
         super().__init__(parent)
         self.parent_widget = parent
-        self.tournament = None
+    
         self.bracket_list = self.parent_widget.findChild(QComboBox, 'bracket_list')
         if self.bracket_list is None:
             print("Bracket list not found")
@@ -40,17 +38,16 @@ class BracketUI(QWidget):
 
         self.service = service
         
-    async def InitUi(self):
+    def InitUi(self):
         self.config = GetConfig.read_config()
         
         if self.config['CHALLONGE']['USERNAME'] != "" or self.config['CHALLONGE']['API_KEY'] != "":
             self.c_api = ChallongeAPI(self.config['CHALLONGE']['USERNAME'], self.config['CHALLONGE']['API_KEY'])
           
             current_torunament = self.config['TOURNAMENT_DETAILS']['URL']
-            tournament_task = asyncio.create_task(self.c_api.get_tournament(current_torunament))
-            self.tournament = await tournament_task
-            participants = await self.c_api.get_participants(self.tournament.get_id())
-            self.matches = await self.c_api.get_matches(self.tournament.get_id())
+            self.tournament = self.c_api.get_tournament(current_torunament)
+            participants = self.c_api.get_participants(self.tournament.get_id())
+            self.matches = self.c_api.get_matches(self.tournament.get_id())
             for i in range(self.bracket_grid.count()):
                 self.bracket_grid.itemAt(i).widget().deleteLater()
 
@@ -214,32 +211,8 @@ class BracketUI(QWidget):
             for widget in self.match_widgets_finals:
                 widget.setVisible(True)
 
-    async def reset_bracket_ui(self):
-        reset = False
-        # Get the information and see if we need to update the UI again
-        if self.tournament is not None:
-            # Get the matches and see if any of the match states have changed
-            matches = await self.c_api.get_matches(self.tournament.get_id())
-            for m in matches:
-                for widget in self.match_widgets_a:
-                    if m.get_id() == widget.match.get_id() and m.get_state() != widget.match.get_state():
-                        reset = True
-                        break;                        
-                for widget in self.match_widgets_b:
-                    if m.get_id() == widget.match.get_id() and m.get_state() != widget.match.get_state():
-                        reset = True
-                        break;
-                for widget in self.match_widgets_finals:
-                    if m.get_id() == widget.match.get_id() and m.get_state() != widget.match.get_state():
-                       reset = True
-                       break;
-
-                if reset:
-                    break;
-            if reset:   
-                await self.InitUi()
-        else:
-            await self.InitUi()
+    def reset_bracket_ui(self):
+        self.InitUi()
 
     def delete_widgets(self, layout):
         if layout is not None:
@@ -290,14 +263,12 @@ class CreateBracket(QWidget):
         self.p2_score = self.findChild(QSpinBox, 'p2_score')
         
         self.complete_button = self.findChild(QPushButton, 'complete_btn')
-        self.complete_button.setVisible(False)
+        self.complete_button.setVisible(True)
         self.edit_button = self.findChild(QPushButton, 'edit_btn')
         self.edit_button.setVisible(False)
         self.match = match
         self.p1 = p1
         self.p2 = p2
-        self.p1_score.setEnabled(False)
-        self.p2_score.setEnabled(False)
 
         self.complete_button.clicked.connect(self.complete_bracket)
         self.edit_button.clicked.connect(self.edit_bracket)
@@ -317,11 +288,14 @@ class CreateBracket(QWidget):
             self.p1_label.setContentsMargins(100, 0, 100, 0)
             self.p2_label.setContentsMargins(100, 0, 100, 0)
 
-
+        if match.get_state() == "complete":
+            self.complete_button.setVisible(False)
+            self.edit_button.setVisible(True)
+            self.p1_score.setEnabled(False)
+            self.p2_score.setEnabled(False)
         self.create_bracket()
 
-    @asyncSlot()
-    async def create_bracket(self):
+    def create_bracket(self):
         try:
             if self.p1 is None:
                 self.p1_label.setText("TBD")
@@ -342,17 +316,7 @@ class CreateBracket(QWidget):
                 
             c_api = ChallongeAPI(GetConfig.read_config()['CHALLONGE']['USERNAME'], GetConfig.read_config()['CHALLONGE']['API_KEY'])    
             
-            tournament = await c_api.get_tournament(self.match.get_tournament_id())
-            if self.match.get_state() == "complete":
-                self.complete_button.setVisible(False)
-                self.edit_button.setVisible(True)
-                self.p1_score.setEnabled(False)
-                self.p2_score.setEnabled(False)
-            else:
-                self.complete_button.setVisible(True)
-                self.edit_button.setVisible(False)
-                self.p1_score.setEnabled(True)
-                self.p2_score.setEnabled(True)
+            tournament = c_api.get_tournament(self.match.get_tournament_id())
             if tournament.get_state() == "complete":
                 self.complete_button.setVisible(False)
                 self.edit_button.setVisible(False)
@@ -360,44 +324,55 @@ class CreateBracket(QWidget):
         except Exception as e:
             print("Error creating bracket: " + str(e))
             
-    @asyncSlot()
-    async def complete_bracket(self):
+    def complete_bracket(self):
+      
         match = self.match
         
+        # get the scores from the widget
         p1_score = self.p1_score.value()
         p2_score = self.p2_score.value()
         
+        # get the winner
         if p1_score > p2_score:
             winner = match.get_player1_id()
             loser = match.get_player2_id()
         else:
             winner = match.get_player2_id()
-            loser = match.get_player1_id()
-            
+            loser =  match.get_player1_id()
+        
+        # get the tournament id
         tournament_id = match.get_tournament_id()
+        
         completed_match = match.complete_match(winner, loser, p1_score, p2_score)
         
         c_api = ChallongeAPI(GetConfig.read_config()['CHALLONGE']['USERNAME'], GetConfig.read_config()['CHALLONGE']['API_KEY'])
-        await asyncio.to_thread(c_api.set_match_scores, tournament_id, completed_match.get_id(), completed_match.get_scores(), winner, loser)
+        c_api.set_match_scores(tournament_id, completed_match.get_id(), completed_match.get_scores(), winner, loser)
         
-        tournament_sheet = await asyncio.to_thread(c_api.get_tournament, GetConfig.read_config()['TOURNAMENT_DETAILS']['URL']).get_related_sheet()
+        # Hacky but doing it for now until for the sake of building the app
+        tournamnet_sheet = c_api.get_tournament(GetConfig.read_config()['TOURNAMENT_DETAILS']['URL']).get_related_sheet()
         
         self.bracket_updated.emit()
+        
+        # Update the widget to show that the match is complete
+        
+
         self.p1_score.setEnabled(False)
         self.p2_score.setEnabled(False)
         
+        # Get player names from winner and loser ids
         winner_name = ""
         loser_name = ""
-        participants = await asyncio.to_thread(c_api.get_participants, tournament_id)
+        participants = c_api.get_participants(tournament_id)
         
         for participant in participants:
             if participant.get_id() == winner:
                 winner_name = participant.get_name()
             if participant.get_id() == loser:
                 loser_name = participant.get_name()
+
         
-        await asyncio.to_thread(self.sheets.update_player, tournament_sheet, winner_name, loser_name)
-        
+        self.sheets.update_player(tournamnet_sheet, winner_name, loser_name)
+    
     def edit_bracket(self):
         match = self.match
         c_api = ChallongeAPI(GetConfig.read_config()['CHALLONGE']['USERNAME'], GetConfig.read_config()['CHALLONGE']['API_KEY'])
